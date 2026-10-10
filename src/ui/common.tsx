@@ -3,6 +3,7 @@ import { isRtl, langName, LANGUAGES, LEVELS, type Level } from "../core/language
 import type { Bridge, LanguageSkill, Term } from "../core/types";
 import { useT } from "../i18n";
 import { platform } from "../storage/platform";
+import { canSpeak, speakAsync, stopSpeaking } from "../storage/tts";
 import type { Vault } from "../storage/vault";
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose(): void; children: ReactNode; wide?: boolean }) {
@@ -57,19 +58,8 @@ export function LangChip({ code }: { code: string }) {
   return <span className="lang-chip">{code.toUpperCase()}</span>;
 }
 
-/** Озвучка системным TTS — если платформа его даёт. */
-export function canSpeak(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
-}
-
 export function speak(text: string, lang: string) {
-  if (!canSpeak()) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang;
-  const voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang));
-  if (voice) u.voice = voice;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
+  stopSpeaking().then(() => speakAsync(text, lang));
 }
 
 export function SpeakButton({ text, lang }: { text: string; lang: string }) {

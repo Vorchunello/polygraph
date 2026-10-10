@@ -19,17 +19,22 @@ export interface Preset {
   model: string;
   needsKey: boolean;
   local: boolean;
+  /** Можно пользоваться бесплатно: без ключа, локально или на бесплатном тарифе. */
+  free?: "nokey" | "local" | "tier";
   models?: string[];
   keyUrl?: string;
 }
 
 export const PRESETS: Preset[] = [
-  { id: "lmstudio", label: "LM Studio", kind: "openai", baseUrl: "http://localhost:1234/v1", model: "", needsKey: false, local: true },
-  { id: "ollama", label: "Ollama", kind: "openai", baseUrl: "http://localhost:11434/v1", model: "", needsKey: false, local: true },
-  { id: "openrouter", label: "OpenRouter", kind: "openai", baseUrl: "https://openrouter.ai/api/v1", model: "", needsKey: true, local: false, keyUrl: "https://openrouter.ai/keys" },
+  // Работает сразу, без ключа и регистрации. Тексты уходят на сервер Pollinations.
+  { id: "free", label: "Pollinations", kind: "openai", baseUrl: "https://text.pollinations.ai/openai", model: "openai", needsKey: false, local: false, free: "nokey" },
+  { id: "lmstudio", label: "LM Studio", kind: "openai", baseUrl: "http://localhost:1234/v1", model: "", needsKey: false, local: true, free: "local" },
+  { id: "ollama", label: "Ollama", kind: "openai", baseUrl: "http://localhost:11434/v1", model: "", needsKey: false, local: true, free: "local" },
+  { id: "openrouter", label: "OpenRouter", kind: "openai", baseUrl: "https://openrouter.ai/api/v1", model: "", needsKey: true, local: false, free: "tier", keyUrl: "https://openrouter.ai/keys" },
+  { id: "groq", label: "Groq", kind: "openai", baseUrl: "https://api.groq.com/openai/v1", model: "", needsKey: true, local: false, free: "tier", keyUrl: "https://console.groq.com/keys" },
   { id: "openai", label: "OpenAI", kind: "openai", baseUrl: "https://api.openai.com/v1", model: "", needsKey: true, local: false, keyUrl: "https://platform.openai.com/api-keys" },
   { id: "deepseek", label: "DeepSeek", kind: "openai", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", needsKey: true, local: false, keyUrl: "https://platform.deepseek.com/api_keys" },
-  { id: "gemini", label: "Google Gemini", kind: "openai", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "", needsKey: true, local: false, keyUrl: "https://aistudio.google.com/apikey" },
+  { id: "gemini", label: "Google Gemini", kind: "openai", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "", needsKey: true, local: false, free: "tier", keyUrl: "https://aistudio.google.com/apikey" },
   {
     id: "anthropic",
     label: "Anthropic Claude",
@@ -52,6 +57,7 @@ export function configFromPreset(p: Preset, prev?: AiConfig): AiConfig {
   return { preset: p.id, kind: p.kind, baseUrl: p.baseUrl, model: p.model, apiKey: prev?.preset === p.id ? prev.apiKey : "" };
 }
 
+// По умолчанию — бесплатный провайдер без ключа: ИИ работает с первой минуты.
 export const DEFAULT_AI: AiConfig = configFromPreset(PRESETS[0]);
 
 export function aiReady(c: AiConfig): boolean {

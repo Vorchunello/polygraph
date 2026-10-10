@@ -25,6 +25,9 @@ export interface ElectronBridge {
     reveal(): Promise<void>;
   };
   http(req: HttpRequest): Promise<HttpResponse>;
+  ticker: { open(): Promise<void>; close(): Promise<void> };
+  /** Другое окно что-то записало в хранилище. Возвращает отписку. */
+  onVaultChanged(fn: (path: string) => void): () => void;
 }
 
 declare global {

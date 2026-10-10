@@ -52,9 +52,11 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "@capacitor-community/text-to-speech": "^4.1.1",
     "@capacitor/core": "^6.2.2",
     "@capacitor/filesystem": "^6.0.4",
     "@capacitor/preferences": "^6.0.4",
+    "fflate": "^0.8.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "yaml": "^2.9.1"

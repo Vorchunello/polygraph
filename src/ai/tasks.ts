@@ -10,7 +10,8 @@ import { extractJson } from "./json";
 function learnerContext(profile: Profile, target: LangCode): string {
   const known = profile.known.map((k) => `${langName(k.code, "en")} [${k.code}] (${k.level})`).join(", ");
   const level = profile.learning.find((l) => l.code === target)?.level ?? "A1";
-  return `The learner studies ${langName(target, "en")} [${target}] at level ${level}. Languages the learner already knows: ${known}.`;
+  const goal = profile.goal?.trim() ? ` The learner's goal: "${profile.goal.trim()}" — keep it in mind and prefer vocabulary, topics and examples that serve it.` : "";
+  return `The learner studies ${langName(target, "en")} [${target}] at level ${level}. Languages the learner already knows: ${known}.${goal}`;
 }
 
 function uiLanguage(profile: Profile): string {
@@ -195,4 +196,146 @@ export async function story(
     .filter(Boolean)
     .join("\n");
   return complete(cfg, { system, prompt, maxTokens: 6000 });
+}
+
+// ——— v0.2 ———
+
+/** Перевод абзацев книги. Возвращает массив той же длины. */
+export async function translateParagraphs(
+  cfg: AiConfig,
+  profile: Profile,
+  from: LangCode,
+  to: LangCode,
+  paragraphs: string[],
+): Promise<string[]> {
+  const system = [
+    `You translate a book for a language learner from ${langName(from, "en")} into ${langName(to, "en")}.`,
+    learnerContext(profile, from),
+    "Translate faithfully and naturally, paragraph by paragraph, keeping the meaning and tone. Do not summarize, skip or merge paragraphs.",
+    `Reply with JSON only: {"t": ["translation of paragraph 1", ...]} — exactly ${paragraphs.length} strings, in order.`,
+  ].join("\n");
+  const prompt = paragraphs.map((p, i) => `[${i + 1}] ${p}`).join("\n\n");
+  const text = await complete(cfg, { system, prompt, maxTokens: 6000 });
+  const t = extractJson<{ t?: unknown[] }>(text).t ?? [];
+  return paragraphs.map((_, i) => (typeof t[i] === "string" ? (t[i] as string) : ""));
+}
+
+export interface AdaptAnalysis {
+  src: string;
+  tgt: string;
+  level: 1 | 2 | 3;
+  chunks: { src: string; tgt: string }[];
+}
+
+/** Разметка текста для режима адаптации: перевод по предложениям, сложность, пары слов. */
+export async function analyzeForAdaptation(
+  cfg: AiConfig,
+  profile: Profile,
+  from: LangCode,
+  to: LangCode,
+  sentences: string[],
+): Promise<AdaptAnalysis[]> {
+  const toName = langName(to, "en");
+  const system = [
+    `You prepare a text for a learner of ${toName}. The text is in ${langName(from, "en")}.`,
+    learnerContext(profile, to),
+    "For every sentence give:",
+    `- tgt: a natural ${toName} translation${to === "ar" ? " written with full harakat (vowel marks)" : ""};`,
+    "- level: 1 = short and simple, 2 = medium, 3 = long or complex;",
+    "- chunks: 3–8 pairs {src, tgt}. src MUST be copied exactly from the sentence (same letters and case). Include single content words and also 1–2 multi-word constructions (a verb with its preposition, an idiom). tgt is the matching piece of the translation.",
+    `Reply with JSON only: {"s": [{"tgt": "...", "level": 1, "chunks": [{"src": "...", "tgt": "..."}]}, ...]} — exactly ${sentences.length} items, in order.`,
+  ].join("\n");
+  const prompt = sentences.map((s, i) => `[${i + 1}] ${s}`).join("\n");
+  const text = await complete(cfg, { system, prompt, maxTokens: 8000 });
+  const raw = extractJson<{ s?: Partial<AdaptAnalysis>[] }>(text).s ?? [];
+  return sentences.map((src, i) => {
+    const r = raw[i] ?? {};
+    const level = [1, 2, 3].includes(Number(r.level)) ? (Number(r.level) as 1 | 2 | 3) : 2;
+    const chunks = (Array.isArray(r.chunks) ? r.chunks : [])
+      .filter((c) => c && typeof c.src === "string" && typeof c.tgt === "string" && src.toLowerCase().includes(c.src.toLowerCase()))
+      .map((c) => ({ src: c.src, tgt: c.tgt }));
+    return { src, tgt: typeof r.tgt === "string" ? r.tgt : "", level, chunks };
+  });
+}
+
+/** Плейлист-лестница: от слов к сочетаниям и фразам, с постоянным повторением. */
+export async function buildLadder(
+  cfg: AiConfig,
+  profile: Profile,
+  target: LangCode,
+  native: LangCode,
+  topic: string,
+  words: string[],
+  size: number,
+): Promise<{ title: string; steps: { tgt: string; native: string }[] }> {
+  const t = langName(target, "en");
+  const n = langName(native, "en");
+  const system = [
+    `You design a listening playlist for learning ${t}. It is played in the background: the learner hears the ${n} phrase, then the ${t} one.`,
+    learnerContext(profile, target),
+    "Build a ladder:",
+    "1. Start with 6–10 basic words (verbs and nouns that combine well).",
+    "2. Combine them into short phrases (go to school, go to the shop, leave the shop).",
+    "3. Grow phrases into sentences step by step (leave the shop and go to school), adding one new element at a time: negation, past, future, questions, pronouns.",
+    "4. Keep reusing earlier words; introduce a few new words every ~15 steps and immediately combine them with the old ones.",
+    "Every step must be understandable from the previous ones. Natural, frequent, spoken language.",
+    `Reply with JSON only: {"title": "short title", "steps": [{"tgt": "${t} text", "native": "${n} text"}, ...]} with about ${size} steps.`,
+  ].join("\n");
+  const prompt = [topic ? `Topic: ${topic}.` : "", words.length ? `Use these words from the learner's dictionary where natural: ${words.join(", ")}.` : ""]
+    .filter(Boolean)
+    .join("\n") || "General everyday topic.";
+  const text = await complete(cfg, { system, prompt, maxTokens: 8000 });
+  const r = extractJson<{ title?: string; steps?: { tgt?: string; native?: string }[] }>(text);
+  const steps = (r.steps ?? []).filter((s) => s?.tgt && s.native).map((s) => ({ tgt: String(s.tgt), native: String(s.native) }));
+  if (!steps.length) throw new Error("The model returned an empty playlist");
+  return { title: r.title ? String(r.title) : topic || t, steps };
+}
+
+export interface NoteContext {
+  title: string;
+  body: string;
+}
+
+/** Вопрос к своим заметкам: ответ опирается на найденные заметки и ссылается на них. */
+export async function askWithNotes(
+  cfg: AiConfig,
+  profile: Profile,
+  target: LangCode,
+  question: string,
+  notes: NoteContext[],
+): Promise<string> {
+  const system = [
+    "You are Polygraph, the learner's study assistant. You answer using the learner's own Markdown notes first, and your knowledge second.",
+    learnerContext(profile, target),
+    "When you use a note, cite it as [[Note title]]. If the notes contradict standard grammar or dictionaries, say so politely.",
+    `Answer in ${uiLanguage(profile)}, in Markdown.`,
+  ].join("\n\n");
+  const ctx = notes.length
+    ? notes.map((n) => `### ${n.title}\n${n.body.slice(0, 2500)}`).join("\n\n")
+    : "(no relevant notes found)";
+  return complete(cfg, { system, prompt: `My notes:\n\n${ctx}\n\n---\n\nQuestion: ${question}`, maxTokens: 3000 });
+}
+
+/** Мультизаметки: тема раскладывается на несколько связанных заметок со [[ссылками]]. */
+export async function makeNotes(
+  cfg: AiConfig,
+  profile: Profile,
+  target: LangCode,
+  topic: string,
+  existing: string[],
+): Promise<NoteContext[]> {
+  const system = [
+    "You are Polygraph. You write study notes in Markdown, like a good Obsidian vault: short, atomic notes, one idea each, connected with [[wikilinks]].",
+    learnerContext(profile, target),
+    "Explain through the languages the learner knows: comparisons, matching structures, where the analogy breaks.",
+    existing.length ? `Existing notes you may link to: ${existing.slice(0, 80).map((t) => `[[${t}]]`).join(", ")}.` : "",
+    `Write in ${uiLanguage(profile)}. Reply with JSON only: {"notes": [{"title": "...", "body": "markdown with [[links]] to the other notes"}]} — 3 to 6 notes. The first note is the overview that links to the others.`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const text = await complete(cfg, { system, prompt: `Topic: ${topic}`, maxTokens: 8000 });
+  const r = extractJson<{ notes?: { title?: string; body?: string }[] }>(text);
+  const notes = (r.notes ?? []).filter((n) => n?.title && n.body).map((n) => ({ title: String(n.title).trim(), body: String(n.body) }));
+  if (!notes.length) throw new Error("The model returned no notes");
+  return notes;
 }

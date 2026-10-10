@@ -31,22 +31,25 @@ async function completeOpenAI(cfg: AiConfig, req: CompletionRequest): Promise<st
     headers["HTTP-Referer"] = "https://github.com/Vorchunello/polygraph";
     headers["X-Title"] = "Polygraph";
   }
+  const body = JSON.stringify({
+    model: cfg.model,
+    max_tokens: req.maxTokens ?? 4000,
+    messages: [
+      { role: "system", content: req.system },
+      { role: "user", content: req.prompt },
+    ],
+  });
   let res: Response;
-  try {
-    res = await platformFetch(`${base(cfg.baseUrl)}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: cfg.model,
-        max_tokens: req.maxTokens ?? 4000,
-        messages: [
-          { role: "system", content: req.system },
-          { role: "user", content: req.prompt },
-        ],
-      }),
-    });
-  } catch (e) {
-    throw new AiError(`Network error: ${(e as Error).message}. Is the server running at ${cfg.baseUrl}?`);
+  // Бесплатные API ограничивают частоту: на 429/503 ждём и пробуем ещё раз.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await platformFetch(`${base(cfg.baseUrl)}/chat/completions`, { method: "POST", headers, body });
+    } catch (e) {
+      throw new AiError(`Network error: ${(e as Error).message}. Is the server running at ${cfg.baseUrl}?`);
+    }
+    if ((res.status !== 429 && res.status !== 503) || attempt >= 3) break;
+    const retryAfter = Number(res.headers.get("retry-after"));
+    await new Promise((r) => setTimeout(r, (retryAfter > 0 ? Math.min(retryAfter, 30) : 3 * (attempt + 1)) * 1000));
   }
   const raw = await res.text();
   if (!res.ok) throw new AiError(`HTTP ${res.status}: ${raw.slice(0, 400)}`);

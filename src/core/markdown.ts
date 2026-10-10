@@ -54,6 +54,7 @@ export function parseProfile(src: string): Profile | null {
     known: d.known,
     learning: Array.isArray(d.learning) ? d.learning : [],
     target: d.target,
+    goal: d.goal ? String(d.goal) : undefined,
     created: String(d.created ?? today()),
   };
 }

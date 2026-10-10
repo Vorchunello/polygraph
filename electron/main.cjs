@@ -71,13 +71,15 @@ ipcMain.handle("vault:read", async (_e, rel) => {
   }
 });
 
-ipcMain.handle("vault:write", async (_e, rel, content) => {
+ipcMain.handle("vault:write", async (e, rel, content) => {
   const full = await resolveInVault(rel);
   await fs.mkdir(path.dirname(full), { recursive: true });
   // Пишем во временный файл и переименовываем: синхронизатор не увидит полфайла.
   const tmp = `${full}.tmp`;
   await fs.writeFile(tmp, String(content), "utf8");
   await fs.rename(tmp, full);
+  // Другие окна (бегущая строка ↔ главное) держат копию данных — сообщаем им.
+  for (const w of BrowserWindow.getAllWindows()) if (w.webContents !== e.sender) w.webContents.send("vault:changed", rel);
 });
 
 ipcMain.handle("vault:remove", async (_e, rel) => {
@@ -92,6 +94,49 @@ ipcMain.handle("http:request", async (_e, req) => {
   return { status: res.status, headers, body: await res.text() };
 });
 
+const webPreferences = {
+  preload: path.join(__dirname, "preload.cjs"),
+  contextIsolation: true,
+  sandbox: true,
+  nodeIntegration: false,
+};
+
+function loadApp(win, hash) {
+  if (DEV_URL) win.loadURL(hash ? `${DEV_URL}#${hash}` : DEV_URL);
+  else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), hash ? { hash } : undefined);
+}
+
+// Бегущая строка для второго монитора: маленькое окно поверх всех окон,
+// включая полноэкранные игры в оконном режиме.
+let tickerWin = null;
+
+ipcMain.handle("ticker:open", () => {
+  if (tickerWin && !tickerWin.isDestroyed()) {
+    tickerWin.show();
+    return;
+  }
+  tickerWin = new BrowserWindow({
+    width: 520,
+    height: 120,
+    minWidth: 260,
+    minHeight: 80,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    title: "Polygraph — ticker",
+    icon: path.join(__dirname, "..", "public", "icon.png"),
+    webPreferences,
+  });
+  tickerWin.setAlwaysOnTop(true, "screen-saver");
+  tickerWin.setVisibleOnAllWorkspaces(true);
+  tickerWin.on("closed", () => (tickerWin = null));
+  loadApp(tickerWin, "ticker");
+});
+
+ipcMain.handle("ticker:close", () => {
+  if (tickerWin && !tickerWin.isDestroyed()) tickerWin.close();
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
@@ -101,12 +146,7 @@ function createWindow() {
     title: "Polygraph",
     icon: path.join(__dirname, "..", "public", "icon.png"),
     autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
-      contextIsolation: true,
-      sandbox: true,
-      nodeIntegration: false,
-    },
+    webPreferences,
   });
   // Внешние ссылки — в системный браузер, а не в окно приложения.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -114,8 +154,9 @@ function createWindow() {
     return { action: "deny" };
   });
   if (process.env.POLYGRAPH_SMOKE) smokeTest(win);
-  if (DEV_URL) win.loadURL(DEV_URL);
-  else win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+  loadApp(win);
+  // Главное окно закрыто — бегущая строка без него не нужна.
+  win.on("closed", () => tickerWin && !tickerWin.isDestroyed() && tickerWin.close());
 }
 
 // Дымовой тест для CI: окно загрузилось, мост на месте, хранилище пишет и читает.

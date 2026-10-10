@@ -78,6 +78,8 @@ export interface Profile {
   learning: LanguageSkill[];
   /** Какой из изучаемых языков сейчас активен. */
   target?: LangCode;
+  /** Зачем ученик учит язык — видна на главной и уходит в каждый запрос к ИИ. */
+  goal?: string;
   created: string;
 }
 

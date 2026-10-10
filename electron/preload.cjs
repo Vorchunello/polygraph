@@ -12,4 +12,13 @@ contextBridge.exposeInMainWorld("polygraph", {
     remove: (p) => ipcRenderer.invoke("vault:remove", p),
   },
   http: (req) => ipcRenderer.invoke("http:request", req),
+  ticker: {
+    open: () => ipcRenderer.invoke("ticker:open"),
+    close: () => ipcRenderer.invoke("ticker:close"),
+  },
+  onVaultChanged: (fn) => {
+    const handler = (_e, rel) => fn(rel);
+    ipcRenderer.on("vault:changed", handler);
+    return () => ipcRenderer.removeListener("vault:changed", handler);
+  },
 });
