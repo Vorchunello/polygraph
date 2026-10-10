@@ -34,7 +34,7 @@ Download from [Releases](https://github.com/Vorchunello/polygraph/releases):
 
 | Platform | File |
 |---|---|
-| Windows | `Polygraph Setup x.y.z.exe` (installer) or `Polygraph x.y.z.exe` (portable) |
+| Windows | `Polygraph.Setup.x.y.z.exe` (installer) or `Polygraph.x.y.z.exe` (portable) |
 | Linux | `Polygraph-x.y.z.AppImage` |
 | Android | `Polygraph-x.y.z.apk` — allow installing from unknown sources |
 

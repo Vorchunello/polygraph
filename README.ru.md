@@ -28,7 +28,7 @@ Polygraph хранит слово как **понятие с мостами**: �
 
 | Платформа | Файл |
 |---|---|
-| Windows | `Polygraph Setup x.y.z.exe` (установщик) или `Polygraph x.y.z.exe` (portable) |
+| Windows | `Polygraph.Setup.x.y.z.exe` (установщик) или `Polygraph.x.y.z.exe` (portable) |
 | Linux | `Polygraph-x.y.z.AppImage` |
 | Android | `Polygraph-x.y.z.apk` — разреши установку из неизвестных источников |
 
