@@ -112,7 +112,13 @@ function morphText(text: string, table: ReturnType<typeof glyphTable>, replaced:
     .split(WORD)
     .filter((p) => p !== "")
     .map((part) => {
-      if (!WORD.test(part)) return { text: code ? part.replace(/ /g, "   ") : part, kind: "src" as const };
+      if (!WORD.test(part)) {
+        if (!code) return { text: part, kind: "src" as const };
+        // В коде знак препинания, прижатый к слову, сливается с последней
+        // буквой («р» + «.» = «л»), поэтому кодируем его и отделяем пробелом.
+        const coded = [...part].map((ch) => (ch === " " ? "   " : ` ${typeof table[ch] === "string" ? table[ch] : ch}`)).join("");
+        return { text: coded, kind: "morph" as const };
+      }
       const m = morphWord(part, table, replaced, code);
       return { text: m, kind: m === part ? ("src" as const) : ("morph" as const) };
     });

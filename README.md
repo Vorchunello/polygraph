@@ -14,16 +14,34 @@ Polygraph keeps every word as a **concept with bridges**: the word in each of yo
 | oil | el aceite | масло | zeytinyağı | oil | TR ↔ both go back to Arabic *zayt / zaytūn* |
 | table | la mesa | стол (m) | masa | table | TR ↔ same word · RU ⚠ gender trap |
 
-## What v0.1 does
+## What it does
 
+**Learn**
+
+- **Your goal on the home screen** — write why you learn the language; it stays in front of you and goes into every AI request.
 - **Multilingual dictionary** — a table or cards, every word in all your languages at once, gender colour-coded, bridges and traps marked.
 - **AI-drafted entries** — type a word in any language; the AI fills in the translations, gender, articles, bridges, etymology and examples. AI output is marked *unverified* until you confirm it.
 - **Routes** — you decide which known language explains which topic: grammatical gender through Russian, articles through English, idioms with matching idioms from every language you know.
 - **Spaced repetition** — *recognize* (see the word, recall the meaning) or *recall* (see it in all your languages at once, produce it in the target one).
-- **Inbox** — write down unknown words on the go, let the AI process them in one batch.
-- **Ask** — grammar and usage questions answered through your routes.
+- **Adaptation mode** — a text in your language turns into the target language step by step: the direction flips to right-to-left, letters change group by group (vowels last — as harakat for Arabic), then words, then constructions, then whole sentences, simple ones first. Works offline for an alphabet alone (Arabic, Hebrew, Greek, Cyrillic, Latin) and for codes: Morse (with sound) and Braille.
+- **Playlists** — background listening built as a ladder: *go, leave, school, shop → go to school → leave the shop and go to school…*, growing step by step with constant repetition. 30–40 minutes you can leave running while you walk or play.
+
+**Read and listen**
+
+- **Reader** — your own books (.txt, .md, .fb2, .fb2.zip, .epub) with a parallel translation the AI makes page by page. Tap a word to send it to the inbox.
+- **Toucan mode** — read a text in a language you know with your dictionary words swapped into the target language.
+- **Background (ADHD) mode** — a word strip on top of TikTok or a game on Android, a small always-on-top window for the second monitor on the PC. Every few words it asks *know / don't know*; missed words come back in Study today.
 - **Stories from your words** — IELTS Reading passage, dialogue, fairy tale, news, diary, Ilya Frank bilingual reading, or *diglot weave* (a text in your language where target-language words take over paragraph by paragraph).
-- **Any AI** — local models on your PC (LM Studio, Ollama) or an API (OpenRouter, OpenAI, DeepSeek, Gemini, Anthropic Claude). On a phone you can also use the LM Studio running on your PC over Wi-Fi.
+
+**Capture and think**
+
+- **Inbox** — write down unknown words on the go (or share them from any Android app), let the AI process them in one batch. Made for not breaking the flow of a film or a book.
+- **Notes** — Markdown notes with `[[wikilinks]]` and backlinks, Obsidian-style. Ask the AI about your notes, or let it write a set of linked notes on a topic.
+- **Ask** — grammar and usage questions answered through your routes.
+
+**Everywhere**
+
+- **Free AI out of the box** — Pollinations works without a key or sign-up. For privacy, local models on your PC (LM Studio, Ollama); for quality, any API (OpenRouter, Groq, Gemini, OpenAI, DeepSeek, Anthropic Claude). On a phone you can also use the LM Studio running on your PC over Wi-Fi.
 - **Your data is Markdown** — one `.md` file per word in a folder you choose. Open it in Obsidian, keep it in git, sync it with Syncthing. Nothing is locked inside the app.
 - **Import / export** — CSV (columns are language codes), Anki text files, JSON backup.
 - **15 first-class languages** with grammar-aware hints (English, Chinese, Hindi, Spanish, French, Arabic, Bengali, Portuguese, Russian, Japanese, German, Turkish, Korean, Italian, Indonesian) plus 15 more — and any other ISO code, because the AI does the heavy lifting. Interface: English and Russian, more coming ([help translate](docs/TRANSLATING.md)).
@@ -44,6 +62,7 @@ The builds are not code-signed yet, so Windows SmartScreen will warn on first la
 
 Settings → AI:
 
+- **Free, no setup (default):** Pollinations — works right away. Your texts go to their public server, so do not use it for anything private.
 - **Local, free, private:** install [LM Studio](https://lmstudio.ai), download a model (Qwen 3 8B, Gemma 3 12B or bigger if your GPU allows), *Developer → Start server*. Choose *LM Studio* in Polygraph and press *Load list*.
 - **API:** pick a provider, paste a key, load the model list. Keys stay on the device and never go into the vault.
 
@@ -58,6 +77,10 @@ Polygraph/
   routes/es.md      which language explains which topic
   inbox.md          captured words
   texts/            saved stories and answers
+  notes/            your notes, linked with [[wikilinks]]
+  library/          books for the reader and their translations
+  adapt/            texts for the adaptation mode
+  playlists/        background listening playlists
 ```
 
 See [docs/VAULT_FORMAT.md](docs/VAULT_FORMAT.md). On Windows the default folder is `Documents\Polygraph` (change it in Settings → Data); on Android it is `Documents/Polygraph`.

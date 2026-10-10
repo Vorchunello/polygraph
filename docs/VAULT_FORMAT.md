@@ -89,6 +89,22 @@ Every `- item` line is one entry. `#tag` labels become tags of the concept when 
 
 Stories and answers you saved, with `title`, `created`, `kind`, `style` and `lang` in the frontmatter.
 
+## `notes/<id>.md`
+
+Free-form notes. `title` and `tags` in the frontmatter (or the first `# Heading`), Markdown body. `[[Title]]` or `[[Title|label]]` links to another note by title or id, or to a dictionary word by any of its spellings. Notes written by the AI carry `source: ai`.
+
+## `library/<id>.md` and `library/<id>.<lang>.md`
+
+A book: `title`, `author`, `lang`, `page` (where you stopped) in the frontmatter; paragraphs separated by blank lines in the body. The translation into `<lang>` lives next to it: `paragraphs: { 0: "...", 5: "..." }` maps paragraph numbers to translations, so a book can be translated page by page; the body repeats them for reading in any editor.
+
+## `adapt/<id>.md`
+
+A text for the adaptation mode: `srcLang`, `tgtLang` (empty for an alphabet or a code), `script` (`arabic`, `hebrew`, `greek`, `cyrillic`, `latin`, `morse`, `braille`) and `sentences` — each with `src`, `tgt`, `level` (1 simple … 3 complex), `para` and `chunks` (`src`/`tgt` pairs of words and constructions).
+
+## `playlists/<id>.md`
+
+A listening playlist: `title`, `lang`, `nativeLang` and `steps` — a list of `{ tgt, native }` from single words up to sentences.
+
 ## `exports/`
 
 Files produced by Settings → Data → Export.

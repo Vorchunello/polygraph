@@ -90,6 +90,19 @@ export async function exportFile(vault: Vault, name: string, content: string, mi
   return path;
 }
 
+export function pickBinaryFile(accept: string): Promise<{ name: string; bytes: Uint8Array } | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = accept;
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      resolve(f ? { name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) } : null);
+    };
+    input.click();
+  });
+}
+
 export function pickTextFile(accept: string): Promise<string | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");

@@ -96,6 +96,9 @@ describe("adaptation", () => {
     const stages = buildStages(morse);
     expect(stages.every((s) => s.kind === "original" || s.kind === "letters")).toBe(true);
     expect(flat(morse, stages.length - 1)).toContain("... --- ...");
+    // Знак не прилипает к последней букве: «s» (...) + «.» не должно дать «....» (h).
+    expect(flat(morse, stages.length - 1)).toContain("... --- ... .-.-.-");
+    expect(flat(morse, stages.length - 1)).toContain(".--. -.-.--");
     expect(flat(morse, stages.length - 1)).not.toMatch(/[a-z]/i);
   });
 });

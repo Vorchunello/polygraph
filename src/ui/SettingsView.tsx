@@ -42,8 +42,21 @@ function ProfileSettings() {
   const app = useApp();
   const p = app.profile;
   const save = (patch: Partial<typeof p>) => app.saveProfile({ ...p, ...patch });
+  const [goal, setGoal] = useState(p.goal ?? "");
   return (
     <div className="stack">
+      <label className="field">
+        <span>{t("home.goal")}</span>
+        <textarea
+          className="input"
+          rows={2}
+          value={goal}
+          onChange={(e) => setGoal(e.target.value)}
+          onBlur={() => goal.trim() !== (p.goal ?? "") && save({ goal: goal.trim() || undefined })}
+          placeholder={t("home.goalPlaceholder")}
+        />
+        <small className="muted">{t("home.goalHint")}</small>
+      </label>
       <label className="field">
         <span>{t("onb.uiLang")}</span>
         <select className="input" value={p.uiLang} onChange={(e) => save({ uiLang: e.target.value })}>
@@ -114,11 +127,12 @@ function AiSettings() {
           {PRESETS.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label}
-              {p.local ? " · local" : ""}
+              {p.free === "nokey" ? ` · ${t("set.freeNoKey")}` : p.free === "local" ? ` · ${t("set.freeLocal")}` : p.free === "tier" ? ` · ${t("set.freeTier")}` : ""}
             </option>
           ))}
         </select>
       </label>
+      {preset.free === "nokey" && <p className="notice small">{t("set.freeNote")}</p>}
       {preset.local && <p className="notice small">{platform() === "android" ? t("set.lanHint") : t("set.localHint")}</p>}
       <label className="field">
         <span>{t("set.baseUrl")}</span>

@@ -3,6 +3,16 @@ import { DEFAULT_AI, type AiConfig } from "../ai/config";
 import type { Concept, LangCode, Profile, Route } from "../core/types";
 import { Repo } from "../storage/repo";
 import { getSetting, setSetting } from "../storage/settings";
+import { Native } from "../storage/native";
+import { platform } from "../storage/platform";
+import { today } from "../core/dates";
+
+/** «Не знаю» в фоне: слово встаёт на повторение сегодня, интервал не растёт. */
+export function markUnknown(c: Concept, lang?: LangCode): Concept {
+  if (!lang || !c.terms[lang]) return c;
+  const s = c.srs[lang];
+  return { ...c, srs: { ...c.srs, [lang]: s ? { ...s, due: today() } : { due: today(), interval: 0, ease: 2.5, reps: 0, lapses: 0 } } };
+}
 
 export interface Toast {
   id: number;
@@ -74,6 +84,41 @@ export function AppProvider({
     reload();
     getSetting<AiConfig>("polygraph.ai", DEFAULT_AI).then(setAiState);
   }, [reload]);
+
+  // ПК: бегущая строка в своём окне поменяла слова или инбокс — перечитываем.
+  useEffect(() => {
+    const off = window.polygraph?.onVaultChanged((path) => {
+      if (path.startsWith("words/") || path === "inbox.md") reload();
+    });
+    return off;
+  }, [reload]);
+
+  // Android: текст из «Поделиться» — в инбокс; «не знаю» с полоски поверх
+  // приложений — слово на повторение сегодня.
+  useEffect(() => {
+    if (platform() !== "android") return;
+    const intake = async () => {
+      const shared = (await Native.takeSharedText().catch(() => ({ text: null }))).text;
+      if (shared?.trim()) {
+        const items = await repo.loadInbox();
+        await repo.saveInbox([...items, shared.trim()]);
+      }
+      const { unknown } = await Native.takeOverlayResults().catch(() => ({ unknown: [] as string[] }));
+      if (unknown.length) {
+        const cs = await repo.loadConcepts();
+        for (const c of cs.filter((x) => unknown.includes(x.id))) await repo.saveConcept(markUnknown(c, profile.target ?? profile.learning[0]?.code));
+      }
+      if (shared?.trim() || unknown.length) reload();
+    };
+    intake();
+    const sub = Native.addListener("sharedText", intake);
+    const onVisible = () => document.visibilityState === "visible" && intake();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      sub.then((h) => h.remove());
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [repo, reload, profile.target, profile.learning]);
 
   useEffect(() => {
     repo.loadRoutes(profile, target).then(({ routes, text }) => {

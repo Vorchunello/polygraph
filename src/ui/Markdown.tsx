@@ -10,6 +10,7 @@ function escape(s: string): string {
 
 function inline(s: string): string {
   return escape(s)
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, alias?: string) => `<a href="#" class="wikilink" data-link="${target.trim()}">${(alias ?? target).trim()}</a>`)
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/__([^_]+)__/g, "<strong>$1</strong>")
@@ -90,7 +91,18 @@ export function renderMarkdown(src: string): string {
   return out.join("\n");
 }
 
-export function Markdown({ text, className = "" }: { text: string; className?: string }) {
+export function Markdown({ text, className = "", onLink }: { text: string; className?: string; onLink?(target: string): void }) {
   const html = useMemo(() => renderMarkdown(text), [text]);
-  return <div className={`md ${className}`} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div
+      className={`md ${className}`}
+      dangerouslySetInnerHTML={{ __html: html }}
+      onClick={(e) => {
+        const a = (e.target as HTMLElement).closest("a.wikilink");
+        if (!a) return;
+        e.preventDefault();
+        onLink?.(a.getAttribute("data-link") ?? "");
+      }}
+    />
+  );
 }

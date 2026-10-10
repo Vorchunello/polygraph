@@ -173,12 +173,17 @@ function smokeTest(win) {
           await v.write("smoke/check.md", "ok");
           const httpUrl = ${JSON.stringify(process.env.POLYGRAPH_SMOKE_HTTP || "")};
           const http = httpUrl ? (await window.polygraph.http({ url: httpUrl, method: "GET", headers: {} })).status : null;
+          await window.polygraph.ticker.open();
+          await new Promise((r) => setTimeout(r, 1500));
           resolve({ root: await v.root(), read: await v.read("smoke/check.md"), list: await v.list("smoke"), http, text: document.body.innerText.slice(0, 60) });
         } catch (e) {
           resolve({ error: String(e) });
         }
       }, 1500))`);
-      const ok = r.read === "ok" && !!r.text;
+      r.windows = BrowserWindow.getAllWindows().length;
+      r.ticker = !!tickerWin && !tickerWin.isDestroyed() && tickerWin.webContents.getURL().endsWith("#ticker");
+      if (r.ticker) r.tickerText = await tickerWin.webContents.executeJavaScript("document.body.innerText.slice(0, 80)");
+      const ok = r.read === "ok" && !!r.text && r.ticker;
       console.log(ok ? "SMOKE OK" : "SMOKE FAIL", JSON.stringify(r));
       if (!ok) process.exitCode = 1;
     } catch (e) {
