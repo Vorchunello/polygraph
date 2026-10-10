@@ -1,0 +1,113 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { platformFetch } from "../storage/platform";
+import type { AiConfig } from "./config";
+
+export interface CompletionRequest {
+  system: string;
+  prompt: string;
+  maxTokens?: number;
+}
+
+export class AiError extends Error {}
+
+export async function complete(cfg: AiConfig, req: CompletionRequest): Promise<string> {
+  const text = cfg.kind === "anthropic" ? await completeAnthropic(cfg, req) : await completeOpenAI(cfg, req);
+  return stripThinking(text);
+}
+
+/** Локальные «думающие» модели (Qwen3, DeepSeek-R1) пишут рассуждение в теги. */
+export function stripThinking(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/^[\s\S]*?<\/think>/i, "").trim();
+}
+
+function base(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+async function completeOpenAI(cfg: AiConfig, req: CompletionRequest): Promise<string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+  if (cfg.preset === "openrouter") {
+    headers["HTTP-Referer"] = "https://github.com/Vorchunello/polygraph";
+    headers["X-Title"] = "Polygraph";
+  }
+  let res: Response;
+  try {
+    res = await platformFetch(`${base(cfg.baseUrl)}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: cfg.model,
+        max_tokens: req.maxTokens ?? 4000,
+        messages: [
+          { role: "system", content: req.system },
+          { role: "user", content: req.prompt },
+        ],
+      }),
+    });
+  } catch (e) {
+    throw new AiError(`Network error: ${(e as Error).message}. Is the server running at ${cfg.baseUrl}?`);
+  }
+  const raw = await res.text();
+  if (!res.ok) throw new AiError(`HTTP ${res.status}: ${raw.slice(0, 400)}`);
+  try {
+    const data = JSON.parse(raw);
+    const content = data.choices?.[0]?.message?.content;
+    if (typeof content !== "string") throw new Error("no content");
+    return content;
+  } catch {
+    throw new AiError(`Unexpected response: ${raw.slice(0, 400)}`);
+  }
+}
+
+// Модели, у которых есть серверный откат при отказе классификатора.
+const FALLBACK_MODELS = /^claude-(opus-5|fable-5)/;
+
+async function completeAnthropic(cfg: AiConfig, req: CompletionRequest): Promise<string> {
+  const client = new Anthropic({
+    apiKey: cfg.apiKey,
+    baseURL: base(cfg.baseUrl) || undefined,
+    dangerouslyAllowBrowser: true, // ключ пользователя, хранится только на его устройстве
+    fetch: platformFetch,
+  });
+  const params = {
+    model: cfg.model,
+    max_tokens: req.maxTokens ?? 16000,
+    system: req.system,
+    messages: [{ role: "user" as const, content: req.prompt }],
+  };
+  try {
+    const msg = FALLBACK_MODELS.test(cfg.model)
+      ? await client.beta.messages.create({
+          ...params,
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+        } as unknown as Anthropic.Beta.MessageCreateParamsNonStreaming)
+      : await client.messages.create(params);
+    if (msg.stop_reason === "refusal") throw new AiError("The model declined this request.");
+    return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+  } catch (e) {
+    if (e instanceof AiError) throw e;
+    if (e instanceof Anthropic.AuthenticationError) throw new AiError("Anthropic: invalid API key.");
+    if (e instanceof Anthropic.RateLimitError) throw new AiError("Anthropic: rate limit, try again in a minute.");
+    if (e instanceof Anthropic.APIError) throw new AiError(`Anthropic ${e.status ?? ""}: ${e.message}`);
+    throw new AiError((e as Error).message);
+  }
+}
+
+/** Список моделей сервера — чтобы не вводить имя модели руками. */
+export async function listModels(cfg: AiConfig): Promise<string[]> {
+  if (cfg.kind === "anthropic") {
+    const client = new Anthropic({ apiKey: cfg.apiKey, dangerouslyAllowBrowser: true, fetch: platformFetch });
+    const out: string[] = [];
+    for await (const m of client.models.list()) out.push(m.id);
+    return out;
+  }
+  const headers: Record<string, string> = {};
+  if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+  const res = await platformFetch(`${base(cfg.baseUrl)}/models`, { headers });
+  if (!res.ok) throw new AiError(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+  const list: { id: string }[] = Array.isArray(data.data) ? data.data : Array.isArray(data.models) ? data.models : [];
+  return list.map((m) => String(m.id).replace(/^models\//, "")).sort();
+}

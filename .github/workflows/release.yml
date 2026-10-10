@@ -1,0 +1,118 @@
+name: Release
+
+# Тег vX.Y.Z собирает установщики под Windows и Linux, APK под Android
+# и публикует их в GitHub Release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: --win nsis portable
+          - os: ubuntu-latest
+            target: --linux AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx electron-builder ${{ matrix.target }} --publish never
+      - name: Smoke test the packaged app
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          POLYGRAPH_SMOKE: "1"
+          POLYGRAPH_VAULT: ${{ runner.temp }}/vault
+        run: timeout 120 ./release/win-unpacked/Polygraph.exe | grep "SMOKE OK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ runner.os }}
+          path: |
+            release/*.exe
+            release/*.AppImage
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Version from tag
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || v="0.0.0"
+          IFS=. read -r a b c <<< "$v"
+          echo "POLYGRAPH_VERSION=$v" >> "$GITHUB_ENV"
+          echo "POLYGRAPH_VERSION_CODE=$((a * 10000 + b * 100 + c + 1))" >> "$GITHUB_ENV"
+      - name: Release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_B64 secret — the APK is signed with a debug key."
+          fi
+      - name: Build APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          mkdir -p ../release
+          cp app/build/outputs/apk/release/app-release.apk "../release/Polygraph-${POLYGRAPH_VERSION}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: release/*.apk
+          if-no-files-found: error
+
+  publish:
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-artifacts
+          merge-multiple: true
+      - name: Release notes from CHANGELOG.md
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '/^## /{p = index($0, v) > 0; next} p' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Polygraph $GITHUB_REF_NAME" > notes.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist-artifacts/* \
+            --title "Polygraph $GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            $([[ "$GITHUB_REF_NAME" == v0.* ]] && echo --prerelease)
