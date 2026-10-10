@@ -83,7 +83,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon --stacktrace
           mkdir -p ../release
           cp app/build/outputs/apk/release/app-release.apk "../release/Polygraph-${POLYGRAPH_VERSION}.apk"
       - uses: actions/upload-artifact@v4
