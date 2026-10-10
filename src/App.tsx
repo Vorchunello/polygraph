@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { langName } from "./core/languages";
 import type { Profile } from "./core/types";
-import { detectUiLang, I18nContext, makeT, useT } from "./i18n";
+import { detectUiLang, I18nContext, makeT, RTL_LOCALES, useT } from "./i18n";
 import { Repo } from "./storage/repo";
 import { openVault } from "./storage/vault";
 import { AdaptView } from "./ui/AdaptView";
 import { AskView } from "./ui/AskView";
 import { BackgroundView } from "./ui/BackgroundView";
+import { CommandPalette } from "./ui/CommandPalette";
+import { GamesView } from "./ui/games/GamesView";
+import { OcrDialog } from "./ui/OcrDialog";
+import { AddWord, WordDetail } from "./ui/WordDetail";
+import type { Concept } from "./core/types";
 import { HomeView } from "./ui/HomeView";
 import { InboxView } from "./ui/InboxView";
 import { NAV_GROUPS, PRIMARY, type ViewId } from "./ui/nav";
 import { NotesView } from "./ui/NotesView";
 import { Onboarding } from "./ui/Onboarding";
 import { PlaylistsView } from "./ui/PlaylistsView";
-import { ReaderView } from "./ui/ReaderView";
+import { ReaderView } from "./ui/reader/ReaderView";
 import { SettingsView } from "./ui/SettingsView";
 import { AppProvider, useApp } from "./ui/state";
 import { StudyView } from "./ui/StudyView";
@@ -64,9 +69,25 @@ function Shell() {
   const app = useApp();
   const [view, setView] = useState<ViewId>("home");
   const [more, setMore] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const [word, setWord] = useState<Concept | null>(null);
+  const [newWord, setNewWord] = useState<string | null>(null);
+
+  // Ctrl+K / ⌘K — палитра команд из любого раздела.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPalette((p) => !p);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
+    document.documentElement.dir = RTL_LOCALES.has(lang) ? "rtl" : "ltr";
   }, [lang]);
 
   const go = (v: ViewId) => {
@@ -106,6 +127,10 @@ function Shell() {
             </select>
           </label>
         )}
+        <button className="palette-btn" onClick={() => setPalette(true)}>
+          <span>⌕ {t("palette.title")}</span>
+          <kbd>Ctrl K</kbd>
+        </button>
         <div className="nav-groups">
           {NAV_GROUPS.map((g, gi) => (
             <div key={gi} className="nav-group">
@@ -139,6 +164,7 @@ function Shell() {
         {view === "study" && <StudyView />}
         {view === "playlists" && <PlaylistsView />}
         {view === "adapt" && <AdaptView />}
+        {view === "games" && <GamesView />}
         {view === "reader" && <ReaderView />}
         {view === "texts" && <TextsView />}
         {view === "background" && <BackgroundView />}
@@ -159,10 +185,25 @@ function Shell() {
           </div>
         </div>
       )}
+      {palette && <CommandPalette onClose={() => setPalette(false)} go={go} openWord={setWord} newWord={setNewWord} />}
+      {word && <WordDetail concept={app.concepts.find((c) => c.id === word.id) ?? word} onClose={() => setWord(null)} />}
+      {newWord !== null && <AddWord initialText={newWord} onClose={() => setNewWord(null)} />}
+      {app.screenshot && <OcrDialog image={app.screenshot} onClose={() => app.setScreenshot(null)} />}
       <div className="toasts" aria-live="polite">
         {app.toasts.map((x) => (
           <div key={x.id} className={`toast ${x.kind}`}>
-            {x.text}
+            <span>{x.text}</span>
+            {x.action && (
+              <button
+                className="toast-action"
+                onClick={() => {
+                  x.action!.run();
+                  app.dismissToast(x.id);
+                }}
+              >
+                {x.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

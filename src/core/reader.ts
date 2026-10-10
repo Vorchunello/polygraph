@@ -87,10 +87,51 @@ export function parseEpub(bytes: Uint8Array): { title?: string; author?: string;
   return { title, author, paragraphs };
 }
 
-/** Разобрать файл по расширению. Поддержка: txt, md, fb2, fb2.zip, epub. */
+/**
+ * Субтитры .srt / .vtt → абзацы. Номера и тайминги выбрасываются, реплики
+ * склеиваются в абзац, пока между ними нет паузы длиннее 2 секунд.
+ */
+export function parseSubtitles(text: string): string[] {
+  const toSec = (t: string) => {
+    const m = /(?:(\d+):)?(\d+):(\d+)[.,](\d+)/.exec(t);
+    return m ? Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) + Number(m[4]) / 1000 : 0;
+  };
+  const cues: { start: number; end: number; text: string }[] = [];
+  for (const block of text.replace(/\r\n/g, "\n").split(/\n\s*\n/)) {
+    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+    const timeIdx = lines.findIndex((l) => l.includes("-->"));
+    if (timeIdx < 0) continue;
+    const [a, b] = lines[timeIdx].split("-->");
+    const body = lines
+      .slice(timeIdx + 1)
+      .join(" ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\{[^}]+\}/g, "")
+      .trim();
+    if (body) cues.push({ start: toSec(a), end: toSec(b), text: body });
+  }
+  const paras: string[] = [];
+  let cur = "";
+  let lastEnd = 0;
+  for (const c of cues) {
+    if (cur && (c.start - lastEnd > 2 || cur.length > 400)) {
+      paras.push(cur);
+      cur = "";
+    }
+    cur = cur ? `${cur} ${c.text}` : c.text;
+    lastEnd = c.end;
+  }
+  if (cur) paras.push(cur);
+  return paras;
+}
+
+/** Разобрать файл по расширению. Поддержка: txt, md, fb2, fb2.zip, epub, srt, vtt. */
 export function parseBookFile(name: string, bytes: Uint8Array): { title: string; author?: string; paragraphs: string[] } {
   const lower = name.toLowerCase();
-  const baseName = name.replace(/\.(fb2\.zip|fb2|epub|txt|md)$/i, "");
+  const baseName = name.replace(/\.(fb2\.zip|fb2|epub|txt|md|srt|vtt)$/i, "");
+  if (lower.endsWith(".srt") || lower.endsWith(".vtt")) {
+    return { title: baseName, paragraphs: parseSubtitles(new TextDecoder("utf-8").decode(bytes)) };
+  }
   if (lower.endsWith(".epub")) {
     const r = parseEpub(bytes);
     return { ...r, title: r.title ?? baseName };

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { aiReady } from "../ai/config";
 import { draftConcept, explain, type ConceptDraft } from "../ai/tasks";
+import { translateText } from "../ai/translate";
 import { today } from "../core/dates";
 import { langInfo, langName } from "../core/languages";
 import type { Bridge, BridgeKind, Concept, Example, Term } from "../core/types";
@@ -159,10 +160,9 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
         <button
           className="btn danger"
           onClick={async () => {
-            if (confirm(t("common.confirmDelete", { name: main?.text ?? concept.id }))) {
-              await app.deleteConcept(concept.id);
-              onClose();
-            }
+            // Без подтверждения: ошибку исправляет «Отменить» в уведомлении.
+            await app.deleteConcept(concept.id, t("common.undo"));
+            onClose();
           }}
         >
           {t("common.delete")}
@@ -201,6 +201,22 @@ export function AddWord({ onClose, initialText = "", onSaved }: { onClose(): voi
     setFromAi(false);
   };
 
+  // Без ИИ: машинный переводчик заполняет слово на всех известных языках.
+  // Мостов и этимологии он не даёт — это работа ИИ или твоя.
+  const viaTranslator = () =>
+    ai.run(async () => {
+      const word = text.trim();
+      const known = app.profile.known.map((k) => k.code).filter((c) => c !== app.target);
+      const terms: Concept["terms"] = { [app.target]: { text: word } };
+      for (const k of known) {
+        const tr = await translateText(app.translator, word, app.target, k);
+        if (tr.trim()) terms[k] = { text: tr.trim() };
+      }
+      const now = today();
+      setDraft({ id: "", terms, bridges: [], examples: [], tags: [], srs: {}, created: now, updated: now, notes: "" });
+      setFromAi(false);
+    });
+
   return (
     <Modal title={t("word.new")} onClose={onClose} wide>
       {!draft ? (
@@ -223,6 +239,9 @@ export function AddWord({ onClose, initialText = "", onSaved }: { onClose(): voi
           <div className="row gap end">
             <button type="button" className="btn" onClick={manual} disabled={!text.trim()}>
               {t("word.manual")}
+            </button>
+            <button type="button" className="btn" onClick={viaTranslator} disabled={!text.trim() || ai.busy}>
+              {t("word.viaTranslator")}
             </button>
             <button type="submit" className="btn primary" disabled={!text.trim() || ai.busy}>
               {ai.busy ? t("common.loading") : `✦ ${t("word.fillAi")}`}

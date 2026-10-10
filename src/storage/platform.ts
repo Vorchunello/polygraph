@@ -26,6 +26,10 @@ export interface ElectronBridge {
   };
   http(req: HttpRequest): Promise<HttpResponse>;
   ticker: { open(): Promise<void>; close(): Promise<void> };
+  /** Снимок экрана (своё окно на время прячется). data URL PNG или null. */
+  captureScreen(): Promise<string | null>;
+  /** Горячие клавиши: Ctrl+Alt+I — текст из буфера, Ctrl+Alt+O — снимок экрана. */
+  onCapture(fn: (d: { kind: "clipboard"; text: string } | { kind: "screen"; image: string }) => void): () => void;
   /** Другое окно что-то записало в хранилище. Возвращает отписку. */
   onVaultChanged(fn: (path: string) => void): () => void;
 }

@@ -1,10 +1,16 @@
 import { createContext, useContext } from "react";
 import { en, type MessageKey, type Messages } from "./en";
+import { ar } from "./ar";
+import { es } from "./es";
 import { ru } from "./ru";
+import { tr } from "./tr";
 
 // Чтобы добавить язык интерфейса: скопируй ru.ts, переведи строки
 // и добавь его сюда. Подробнее — docs/TRANSLATING.md.
-export const LOCALES: Record<string, Messages> = { en, ru };
+export const LOCALES: Record<string, Messages> = { en, ru, es, tr, ar };
+
+/** Интерфейсы, которые пишутся справа налево. */
+export const RTL_LOCALES = new Set(["ar", "fa", "he", "ur"]);
 
 export type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 

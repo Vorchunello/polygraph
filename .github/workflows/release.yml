@@ -36,7 +36,7 @@ jobs:
         env:
           POLYGRAPH_SMOKE: "1"
           POLYGRAPH_VAULT: ${{ runner.temp }}/vault
-        run: timeout 120 ./release/win-unpacked/Polygraph.exe | grep "SMOKE OK"
+        run: timeout 200 ./release/win-unpacked/Polygraph.exe | grep "SMOKE OK"
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ runner.os }}

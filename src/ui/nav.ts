@@ -6,6 +6,7 @@ export type ViewId =
   | "study"
   | "playlists"
   | "adapt"
+  | "games"
   | "reader"
   | "texts"
   | "background"
@@ -30,6 +31,7 @@ export const NAV_GROUPS: { label?: MessageKey; items: NavItem[] }[] = [
       { id: "study", icon: "◉", label: "nav.study" },
       { id: "playlists", icon: "♫", label: "nav.playlists" },
       { id: "adapt", icon: "⇄", label: "nav.adapt" },
+      { id: "games", icon: "◈", label: "nav.games" },
     ],
   },
   {

@@ -6,17 +6,13 @@ Releases every 2–3 weeks. Each version has to be usable on its own; nothing sh
 
 - **v0.1** — multilingual dictionary with bridges, AI drafts, routes, spaced repetition, inbox, Ask, stories, Markdown vault, Windows / Linux / Android.
 - **v0.2** — home screen and goal, free AI by default, adaptation mode (scripts, Morse, Braille), reader with parallel translation, Toucan mode, playlists, background (ADHD) mode on Android and PC, notes with wikilinks, share-to-inbox on Android.
+- **v0.3** — games (Sennaar, Bridge or trap?, drill builder), reader views and ADHD focus aids, speed reading, read aloud, PDF / subtitles / web articles / photos in the reader, on-device OCR and desktop hotkeys, translator without AI, interface in Spanish, Turkish and Arabic, Ctrl+K command palette.
 
-## v0.3 — games
+## v0.4 — grounded AI, the Forge loop and speaking
 
-- **Sennaar mode** (after *Chants of Sennaar*): a text in the target language with no translation; you keep a journal of guesses, a word is confirmed after three contexts.
-- **Bridge or trap?**: decide whether a pair is a real bridge or a false friend.
-- **Game builder**: combine blocks (matching, typing, listening, ordering) into your own drill.
-- **Adaptation as a game**: timed reading at each stage, with the stage unlocking only when you read the previous one without help.
-- More interface languages (Spanish, Turkish, Arabic first).
-
-## v0.4 — grounded AI and the Forge loop
-
+- **Pronunciation practice**: record yourself and compare with the model voice; speech recognition on the device (Whisper in WebAssembly).
+- **Adaptation as a game**: each stage unlocks when you read the previous one without help.
+- More interface languages (Chinese, Hindi, French, Portuguese, German).
 - **RAG over Wiktionary** (kaikki.org dumps): etymology and cognates come from a dictionary, the AI only explains them. Bridges with a source are marked verified automatically.
 - **RAG over your own books and notes**: examples taken from what you actually read.
 - **MCP server**: Claude Code and other agents can read your words, notes, errors and review queue.

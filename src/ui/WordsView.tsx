@@ -10,6 +10,7 @@ export function WordsView() {
   const { t, lang } = useT();
   const { concepts, profile, target } = useApp();
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "traps" | "unverified" | "unstudied">("all");
   const [tag, setTag] = useState("");
   const [mode, setMode] = useState<"table" | "cards">(() => (localStorage.getItem("polygraph.wordsMode") as "cards") || "table");
   const [open, setOpen] = useState<Concept | null>(null);
@@ -24,9 +25,13 @@ export function WordsView() {
       (c) =>
         c.terms[target] &&
         (!tag || c.tags.includes(tag)) &&
+        (filter === "all" ||
+          (filter === "traps" && c.bridges.some((b) => b.strength === "broken")) ||
+          (filter === "unverified" && (c.bridges.some((b) => !b.verified) || (!!c.etymology && !c.etymologyVerified))) ||
+          (filter === "unstudied" && !c.srs[target])) &&
         (!q || Object.values(c.terms).some((x) => x.text.toLowerCase().includes(q)) || c.tags.some((x) => x.includes(q))),
     );
-  }, [concepts, query, tag, target]);
+  }, [concepts, query, tag, target, filter]);
 
   const setView = (m: "table" | "cards") => {
     setMode(m);
@@ -73,6 +78,14 @@ export function WordsView() {
           </button>
         </div>
       </header>
+
+      <div className="row gap wrap filter-chips">
+        {(["all", "traps", "unverified", "unstudied"] as const).map((f) => (
+          <button key={f} className={`chip-btn small-chip ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>
+            {t(`words.f.${f}`)}
+          </button>
+        ))}
+      </div>
 
       <p className="muted small">
         {t("words.count", { n: list.length })} · <span className="mark strong">↔</span> {t("words.legendStrong")} ·{" "}

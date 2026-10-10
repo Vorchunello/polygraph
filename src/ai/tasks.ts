@@ -339,3 +339,76 @@ export async function makeNotes(
   if (!notes.length) throw new Error("The model returned no notes");
   return notes;
 }
+
+// ——— v0.3: игры ———
+
+export interface SennaarWord {
+  word: string;
+  meaning: string;
+  accept: string[];
+}
+
+export interface SennaarSet {
+  title: string;
+  words: SennaarWord[];
+  scenes: { emoji: string; text: string }[];
+}
+
+/**
+ * Набор для дешифровки в духе Chants of Sennaar: короткие сцены на изучаемом
+ * языке без перевода, эмодзи вместо картинок. Каждое загаданное слово
+ * встречается минимум в трёх сценах — значение выводится из контекста.
+ */
+export async function makeSennaar(cfg: AiConfig, profile: Profile, target: LangCode, known: string[]): Promise<SennaarSet> {
+  const t = langName(target, "en");
+  const ui = uiLanguage(profile);
+  const system = [
+    `You design a deciphering puzzle for a learner of ${t}, in the spirit of the game Chants of Sennaar: no translations, meaning comes from context.`,
+    learnerContext(profile, target),
+    "Rules:",
+    "- Choose 6–8 target words (concrete nouns, common verbs, adjectives) the learner probably does not know yet.",
+    `- Write 8–10 scenes. Each scene: an emoji strip that shows the situation (3–6 emoji) and 1–2 short, simple ${t} sentences describing it.`,
+    "- Every target word appears in at least 3 different scenes, in contexts that make its meaning guessable.",
+    known.length ? `- Apart from the target words, prefer words the learner already knows: ${known.slice(0, 60).join(", ")}.` : "- Apart from the target words, use very frequent, simple words.",
+    `- For each target word give its meaning in ${ui} and 1–4 acceptable synonyms in ${ui}.`,
+    `- "word" must be written exactly as it appears in the scenes (one form; if it inflects, list the most frequent form).`,
+    `Reply with JSON only: {"title": "...", "words": [{"word": "...", "meaning": "...", "accept": ["..."]}], "scenes": [{"emoji": "...", "text": "..."}]}`,
+  ].join("\n");
+  const text = await complete(cfg, { system, prompt: "Create the puzzle.", maxTokens: 5000 });
+  const r = extractJson<Partial<SennaarSet>>(text);
+  const words = (r.words ?? [])
+    .filter((w) => w?.word && w.meaning)
+    .map((w) => ({ word: String(w.word), meaning: String(w.meaning), accept: Array.isArray(w.accept) ? w.accept.map(String) : [] }));
+  const scenes = (r.scenes ?? []).filter((s) => s?.text).map((s) => ({ emoji: String(s.emoji ?? ""), text: String(s.text) }));
+  if (words.length < 3 || scenes.length < 3) throw new Error("The model returned an incomplete puzzle");
+  return { title: r.title ? String(r.title) : t, words, scenes };
+}
+
+export interface AiTrapPair {
+  a: { lang: LangCode; text: string };
+  b: { lang: LangCode; text: string };
+  trap: boolean;
+  explain: string;
+}
+
+/** Пары «мост или ловушка»: настоящие родственные слова вперемешку с ложными друзьями. */
+export async function makeTrapPairs(cfg: AiConfig, profile: Profile, target: LangCode, count = 12): Promise<AiTrapPair[]> {
+  const known = profile.known.map((k) => k.code).filter((c) => c !== target);
+  const system = [
+    `You make a quiz for a learner of ${langName(target, "en")} who knows: ${known.map((k) => langName(k, "en")).join(", ")}.`,
+    "Each item pairs a word of the target language with a similar-looking or similar-sounding word of one known language.",
+    "About half are real bridges (same meaning, shared origin or a loanword), the rest are traps: false friends, or the same word with a different grammatical gender. Only use pairs that standard dictionaries confirm.",
+    `Explanations in ${uiLanguage(profile)}, one or two sentences, giving both meanings.`,
+    `Reply with JSON only: {"pairs": [{"a": {"lang": "${target}", "text": "..."}, "b": {"lang": "<known code>", "text": "..."}, "trap": true, "explain": "..."}]} — ${count} items, mixed languages.`,
+  ].join("\n");
+  const text = await complete(cfg, { system, prompt: "Make the quiz.", maxTokens: 4000 });
+  const r = extractJson<{ pairs?: Partial<AiTrapPair>[] }>(text);
+  return (r.pairs ?? [])
+    .filter((p) => p?.a?.text && p.b?.text && typeof p.trap === "boolean")
+    .map((p) => ({
+      a: { lang: String(p.a!.lang || target), text: String(p.a!.text) },
+      b: { lang: String(p.b!.lang), text: String(p.b!.text) },
+      trap: !!p.trap,
+      explain: String(p.explain ?? ""),
+    }));
+}

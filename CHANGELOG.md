@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 — 2026-10-10
+
+Games, a much better reader, text from photos and screens, translation without AI, and three more interface languages.
+
+- **Games.** *Sennaar* — decipher the language from short scenes without a translation (emoji instead of pictures), keep a journal of guesses, add deciphered words to the dictionary. *Bridge or trap?* — similar words in two languages, real cognate or false friend. *Drill builder* — compose workouts from blocks (choose, reverse, type, listen, match, word order, gender), save them as presets. Mistakes send words back to today's review.
+- **Reader views.** Page themes (paper, sepia, night, contrast), fonts including a readable one, size, line spacing, column width. Focus aids for ADHD: *anchor letters* (bold word beginnings), *rhythm* (sentences alternate bold / italic / colour), *ruler* (only the current paragraph is bright). Clean distraction-free reading, speed reading word by word (RSVP), reading aloud with paragraph highlighting, progress bar and time left, ←/→ to turn pages.
+- **More sources for the reader.** PDF, subtitles (.srt, .vtt), any web article by link (cleaned to text like a browser's reader view), and photos of pages (text recognition on the device).
+- **Text recognition (OCR).** Photo or screenshot → tap the words you want → inbox. On the PC: **Ctrl+Alt+I** sends copied text to the inbox from any program, **Ctrl+Alt+O** reads text from the screen (made for games and films).
+- **Translator without AI.** MyMemory (no key), DeepL (free key) or LibreTranslate. Used for quick word lookups in the reader, translating book pages when the AI is busy, and the new “Translate (no AI)” button when adding a word.
+- **Interface in Spanish, Turkish and Arabic** (right-to-left layout), in addition to English and Russian.
+- **Conveniences.** Ctrl+K search and commands; undo after deleting a word; light / dark theme switch and interface size; new-words-per-day limit and automatic pronunciation in Study; filters in the dictionary (traps, unverified, not studied); multi-line paste into the inbox, paste from clipboard.
+
 ## 0.2.0 — 2026-10-10
 
 Learning in the background, reading, and a new way to meet a new alphabet.

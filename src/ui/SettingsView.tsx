@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { complete, listModels } from "../ai/client";
 import { configFromPreset, presetById, PRESETS } from "../ai/config";
+import { translateText } from "../ai/translate";
 import { conceptsFromAnki, conceptsFromCsv, conceptsToAnki, conceptsToCsv } from "../core/exchange";
 import { langName } from "../core/languages";
 import { parseConcept, serializeConcept } from "../core/markdown";
@@ -10,14 +11,14 @@ import { platform } from "../storage/platform";
 import { exportFile, LanguagePicker, pickTextFile, useAsync } from "./common";
 import { useApp } from "./state";
 
-type Tab = "profile" | "routes" | "ai" | "data" | "about";
+type Tab = "profile" | "view" | "routes" | "ai" | "translator" | "data" | "about";
 
 declare const __APP_VERSION__: string;
 
 export function SettingsView() {
   const { t } = useT();
   const [tab, setTab] = useState<Tab>("profile");
-  const tabs: Tab[] = ["profile", "routes", "ai", "data", "about"];
+  const tabs: Tab[] = ["profile", "view", "routes", "ai", "translator", "data", "about"];
   return (
     <section className="view narrow">
       <h1>{t("nav.settings")}</h1>
@@ -30,7 +31,9 @@ export function SettingsView() {
       </div>
       {tab === "profile" && <ProfileSettings />}
       {tab === "routes" && <RoutesSettings />}
+      {tab === "view" && <ViewSettings />}
       {tab === "ai" && <AiSettings />}
+      {tab === "translator" && <TranslatorSettings />}
       {tab === "data" && <DataSettings />}
       {tab === "about" && <About />}
     </section>
@@ -75,6 +78,111 @@ function ProfileSettings() {
         <span>{t("set.learning")}</span>
         <LanguagePicker value={p.learning} onChange={(learning) => learning.length && save({ learning })} uiLang={lang} defaultLevel="A1" />
       </div>
+    </div>
+  );
+}
+
+function ViewSettings() {
+  const { t } = useT();
+  const app = useApp();
+  const p = app.prefs;
+  const set = (patch: Partial<typeof p>) => app.setPrefs({ ...p, ...patch });
+  return (
+    <div className="stack">
+      <div className="field">
+        <span>{t("set.theme")}</span>
+        <div className="segmented">
+          {(["system", "light", "dark"] as const).map((th) => (
+            <button key={th} className={p.theme === th ? "on" : ""} onClick={() => set({ theme: th })}>
+              {t(`set.theme.${th}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="field">
+        <span>{t("set.scale", { n: Math.round(p.scale * 100) })}</span>
+        <input type="range" min={0.85} max={1.35} step={0.05} value={p.scale} onChange={(e) => set({ scale: Number(e.target.value) })} />
+      </label>
+      <label className="field">
+        <span>{t("set.newPerDay", { n: p.newPerDay })}</span>
+        <input type="range" min={0} max={50} step={5} value={p.newPerDay} onChange={(e) => set({ newPerDay: Number(e.target.value) })} />
+      </label>
+      <label className="row gap">
+        <input type="checkbox" checked={p.autoplay} onChange={(e) => set({ autoplay: e.target.checked })} /> {t("set.autoplay")}
+      </label>
+      <p className="muted small">{t("set.paletteHint")}</p>
+    </div>
+  );
+}
+
+function TranslatorSettings() {
+  const { t } = useT();
+  const app = useApp();
+  const cfg = app.translator;
+  const set = (patch: Partial<typeof cfg>) => app.setTranslator({ ...cfg, ...patch });
+  const [status, setStatus] = useState("");
+  const job = useAsync();
+  return (
+    <div className="stack">
+      <p className="muted">{t("tr.hint")}</p>
+      <label className="field">
+        <span>{t("set.provider")}</span>
+        <select className="input" value={cfg.id} onChange={(e) => set({ id: e.target.value as typeof cfg.id })}>
+          <option value="mymemory">MyMemory · {t("set.freeNoKey")}</option>
+          <option value="deepl">DeepL · {t("set.freeTier")}</option>
+          <option value="libre">LibreTranslate</option>
+        </select>
+      </label>
+      {cfg.id === "mymemory" && (
+        <>
+          <p className="notice small">{t("tr.mymemoryNote")}</p>
+          <label className="field">
+            <span>{t("tr.email")}</span>
+            <input className="input" type="email" value={cfg.email} onChange={(e) => set({ email: e.target.value.trim() })} />
+          </label>
+        </>
+      )}
+      {cfg.id === "deepl" && (
+        <label className="field">
+          <span>
+            {t("set.apiKey")}{" "}
+            <a href="https://www.deepl.com/pro-api" target="_blank" rel="noreferrer" className="small">
+              {t("set.getKey")} ↗
+            </a>
+          </span>
+          <input className="input mono" type="password" autoComplete="off" value={cfg.deeplKey} onChange={(e) => set({ deeplKey: e.target.value.trim() })} />
+          <small className="muted">{t("set.apiKeyHint")}</small>
+        </label>
+      )}
+      {cfg.id === "libre" && (
+        <>
+          <label className="field">
+            <span>{t("set.baseUrl")}</span>
+            <input className="input mono" value={cfg.libreUrl} onChange={(e) => set({ libreUrl: e.target.value.trim() })} placeholder="https://libretranslate.example.com" />
+          </label>
+          <label className="field">
+            <span>{t("set.apiKey")}</span>
+            <input className="input mono" type="password" autoComplete="off" value={cfg.libreKey} onChange={(e) => set({ libreKey: e.target.value.trim() })} />
+          </label>
+        </>
+      )}
+      <div className="row gap end">
+        <button
+          className="btn primary"
+          disabled={job.busy}
+          onClick={() =>
+            job.run(async () => {
+              setStatus("");
+              const out = await translateText(cfg, "I get up early and drink coffee.", "en", app.profile.uiLang === "en" ? "es" : app.profile.uiLang);
+              setStatus(t("set.testOk", { reply: out }));
+            })
+          }
+        >
+          {job.busy ? t("common.loading") : t("set.test")}
+        </button>
+      </div>
+      {status && <p className="ok-text">{status}</p>}
+      {job.error && <p className="error">{job.error}</p>}
     </div>
   );
 }

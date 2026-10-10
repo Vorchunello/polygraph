@@ -38,8 +38,16 @@ export function StudyView() {
   const known = profile.known.map((k) => k.code).filter((c) => c !== target);
   const card = queue?.[0];
 
+  // Узнавание: слово звучит сразу, как только показана карточка.
+  useEffect(() => {
+    if (card && mode === "recognize" && app.prefs.autoplay) {
+      const term = card.terms[target];
+      speak([term.article, term.text].filter(Boolean).join(" "), target);
+    }
+  }, [card?.id, mode, target, app.prefs.autoplay]);
+
   const start = () => {
-    setQueue(buildQueue(concepts, target));
+    setQueue(buildQueue(concepts, target, app.prefs.newPerDay));
     setDone(0);
     setRevealed(false);
   };
@@ -64,7 +72,7 @@ export function StudyView() {
     setRevealed(true);
     const term = card.terms[target];
     if (typed.trim()) setChecked(sameAnswer(typed, term.text, term.article));
-    if (mode === "recall") speak([term.article, term.text].filter(Boolean).join(" "), target);
+    if (mode === "recall" && app.prefs.autoplay) speak([term.article, term.text].filter(Boolean).join(" "), target);
   }, [card, target, typed, mode]);
 
   useEffect(() => {
@@ -89,7 +97,7 @@ export function StudyView() {
         <h1>{t("study.title", { lang: targetName })}</h1>
         <p className="row gap">
           <span className="badge">{t("study.due", { n: stats.due })}</span>
-          <span className="badge">{t("study.new", { n: Math.min(stats.fresh, 10) })}</span>
+          <span className="badge">{t("study.new", { n: Math.min(stats.fresh, app.prefs.newPerDay) })}</span>
         </p>
         <div className="mode-pick">
           {(["recognize", "recall"] as Mode[]).map((m) => (

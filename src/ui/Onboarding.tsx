@@ -2,7 +2,7 @@ import { useState } from "react";
 import { langName } from "../core/languages";
 import { today } from "../core/dates";
 import type { LanguageSkill, Profile } from "../core/types";
-import { I18nContext, LOCALES, makeT } from "../i18n";
+import { I18nContext, LOCALES, makeT, RTL_LOCALES } from "../i18n";
 import { LanguagePicker } from "./common";
 
 export function Onboarding({ initialUi, onDone }: { initialUi: string; onDone(p: Profile): void }) {
@@ -11,6 +11,7 @@ export function Onboarding({ initialUi, onDone }: { initialUi: string; onDone(p:
   const [known, setKnown] = useState<LanguageSkill[]>([{ code: uiLang, level: "native" }]);
   const [learning, setLearning] = useState<LanguageSkill[]>([]);
   const t = makeT(uiLang);
+  document.documentElement.dir = RTL_LOCALES.has(uiLang) ? "rtl" : "ltr";
 
   const canNext = step === 0 || (step === 1 && known.length > 0) || (step === 2 && learning.length > 0);
 

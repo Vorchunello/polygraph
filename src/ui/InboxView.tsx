@@ -2,7 +2,8 @@ import { useState } from "react";
 import { aiReady } from "../ai/config";
 import { draftConcept } from "../ai/tasks";
 import { useT } from "../i18n";
-import { useAsync } from "./common";
+import { pickImage, useAsync } from "./common";
+import { OcrDialog } from "./OcrDialog";
 import { useApp } from "./state";
 import { AddWord, conceptFromDraft } from "./WordDetail";
 
@@ -14,11 +15,22 @@ export function InboxView() {
   const [progress, setProgress] = useState("");
   const job = useAsync();
 
-  const add = () => {
-    const v = text.trim();
-    if (!v) return;
-    app.setInbox([...app.inbox, v]);
+  const [image, setImage] = useState<Blob | string | null>(null);
+
+  // Вставка списка: каждая строка — отдельный пункт.
+  const add = (raw = text) => {
+    const items = raw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    if (!items.length) return;
+    app.addToInbox(items);
     setText("");
+  };
+
+  const fromClipboard = async () => {
+    try {
+      add(await navigator.clipboard.readText());
+    } catch {
+      app.toast(t("inbox.clipboardDenied"), "error");
+    }
   };
 
   const remove = (item: string) => app.setInbox(app.inbox.filter((x) => x !== item));
@@ -75,9 +87,48 @@ export function InboxView() {
           add();
         }}
       >
-        <input className="input grow" autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={t("inbox.placeholder")} />
+        <input
+          className="input grow"
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => {
+            const pasted = e.clipboardData.getData("text");
+            if (pasted.includes("\n")) {
+              e.preventDefault();
+              add(pasted);
+            }
+          }}
+          placeholder={t("inbox.placeholder")}
+        />
         <button className="btn primary">{t("common.add")}</button>
       </form>
+      <div className="row gap wrap inbox-tools">
+        <button className="btn small" onClick={fromClipboard}>
+          📋 {t("inbox.fromClipboard")}
+        </button>
+        <button
+          className="btn small"
+          onClick={async () => {
+            const f = await pickImage();
+            if (f) setImage(f);
+          }}
+        >
+          📷 {t("inbox.fromPhoto")}
+        </button>
+        {window.polygraph && (
+          <button
+            className="btn small"
+            onClick={async () => {
+              const shot = await window.polygraph!.captureScreen();
+              if (shot) setImage(shot);
+            }}
+          >
+            🖥 {t("inbox.fromScreen")}
+          </button>
+        )}
+      </div>
+      {window.polygraph && <p className="muted small">{t("inbox.hotkeys")}</p>}
 
       {app.inbox.length === 0 ? (
         <div className="empty">{t("inbox.empty")}</div>
@@ -107,6 +158,7 @@ export function InboxView() {
       {job.error && <p className="error">{job.error}</p>}
 
       {making && <AddWord initialText={splitTags(making).word} onClose={() => setMaking(null)} onSaved={() => remove(making)} />}
+      {image && <OcrDialog image={image} onClose={() => setImage(null)} />}
     </section>
   );
 }

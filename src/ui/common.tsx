@@ -103,6 +103,17 @@ export function pickBinaryFile(accept: string): Promise<{ name: string; bytes: U
   });
 }
 
+/** Выбор картинки: на телефоне предлагает и камеру. */
+export function pickImage(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.click();
+  });
+}
+
 export function pickTextFile(accept: string): Promise<string | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");

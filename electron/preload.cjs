@@ -16,6 +16,12 @@ contextBridge.exposeInMainWorld("polygraph", {
     open: () => ipcRenderer.invoke("ticker:open"),
     close: () => ipcRenderer.invoke("ticker:close"),
   },
+  captureScreen: () => ipcRenderer.invoke("screen:capture"),
+  onCapture: (fn) => {
+    const handler = (_e, data) => fn(data);
+    ipcRenderer.on("capture", handler);
+    return () => ipcRenderer.removeListener("capture", handler);
+  },
   onVaultChanged: (fn) => {
     const handler = (_e, rel) => fn(rel);
     ipcRenderer.on("vault:changed", handler);

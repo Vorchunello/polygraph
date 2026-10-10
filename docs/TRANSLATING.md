@@ -17,4 +17,6 @@ To add a language, for example Turkish:
 
 Language names (in the language pickers and tables) come from the platform's `Intl.DisplayNames`, so they are already localized for almost every language.
 
-Wanted first: Spanish, Turkish, Arabic, Chinese, Hindi, French, Portuguese, German, Japanese, Korean, Italian, Indonesian, Bengali.
+Available: English, Russian, Spanish, Turkish, Arabic (right-to-left). Wanted next: Chinese, Hindi, French, Portuguese, German, Japanese, Korean, Italian, Indonesian, Bengali.
+
+For a right-to-left language also add its code to `RTL_LOCALES` in `src/i18n/index.ts`; the layout mirrors itself.
