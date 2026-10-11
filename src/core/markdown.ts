@@ -31,6 +31,7 @@ export function parseConcept(src: string, fallbackId: string): Concept {
     examples: Array.isArray(d.examples) ? d.examples : [],
     etymology: d.etymology,
     etymologyVerified: d.etymologyVerified,
+    etymologySource: d.etymologySource,
     tags: Array.isArray(d.tags) ? d.tags.map(String) : [],
     srs: d.srs ?? {},
     created: String(d.created ?? today()),

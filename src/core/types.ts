@@ -58,6 +58,8 @@ export interface Concept {
   examples: Example[];
   etymology?: string;
   etymologyVerified?: boolean;
+  /** Откуда этимология: "wiktionary" — ИИ пересказал словарь, а не вспоминал. */
+  etymologySource?: string;
   tags: string[];
   srs: Record<LangCode, SrsState>;
   created: string;

@@ -23,7 +23,7 @@ Polygraph keeps every word as a **concept with bridges**: the word in each of yo
 - **AI-drafted entries** — type a word in any language; the AI fills in the translations, gender, articles, bridges, etymology and examples. AI output is marked *unverified* until you confirm it.
 - **Routes** — you decide which known language explains which topic: grammatical gender through Russian, articles through English, idioms with matching idioms from every language you know.
 - **Spaced repetition** — *recognize* (see the word, recall the meaning) or *recall* (see it in all your languages at once, produce it in the target one).
-- **Adaptation mode** — a text in your language turns into the target language step by step: the direction flips to right-to-left, letters change group by group (vowels last — as harakat for Arabic), then words, then constructions, then whole sentences, simple ones first. Works offline for an alphabet alone (Arabic, Hebrew, Greek, Cyrillic, Latin) and for codes: Morse (with sound) and Braille.
+- **Adaptation mode** — a text in your language turns into the target language step by step: word order flips to right-to-left, letters change a few at a time (Arabic follows real transliteration: *Москва* → موسكفا; vowels as letters or harakat), then words one by one, then constructions, then whole sentences, simple ones first. Every step is adjustable, and a challenge mode unlocks the next stage only when you read the current one without peeking. Works offline for an alphabet alone (Arabic, Hebrew, Greek, Cyrillic, Latin) and for codes: Morse (with sound) and Braille.
 - **Playlists** — background listening built as a ladder: *go, leave, school, shop → go to school → leave the shop and go to school…*, growing step by step with constant repetition. 30–40 minutes you can leave running while you walk or play.
 - **Games** — *Sennaar* (decipher the language from scenes without a translation, like in Chants of Sennaar), *Bridge or trap?* (cognate or false friend), and a *drill builder* to assemble your own workouts: choose, type, listen, match, word order, gender.
 
@@ -40,6 +40,9 @@ Polygraph keeps every word as a **concept with bridges**: the word in each of yo
 - **Text from photos and screens** — on-device text recognition: photograph a page or capture the screen, tap the words you want. On the PC, **Ctrl+Alt+I** sends copied text to the inbox from any program and **Ctrl+Alt+O** reads text from the screen — handy in games and films.
 - **Notes** — Markdown notes with `[[wikilinks]]` and backlinks, Obsidian-style. Ask the AI about your notes, or let it write a set of linked notes on a topic.
 - **Ask** — grammar and usage questions answered through your routes.
+- **Pronunciation** — “Say it” on every word: speech is recognised on the device (Whisper), you see what was heard and a similarity score.
+- **Wiktionary** — new words are drafted from the dictionary entry, and any etymology can be checked and marked verified.
+- **For AI agents** — an MCP server lets Claude Code and other agents read your words, traps, inbox and notes ([docs/MCP.md](docs/MCP.md)).
 
 **Everywhere**
 
@@ -66,7 +69,8 @@ The builds are not code-signed yet, so Windows SmartScreen will warn on first la
 
 Settings → AI:
 
-- **Free, no setup (default):** Pollinations — works right away. Your texts go to their public server, so do not use it for anything private.
+- **Free, no setup (default):** Pollinations — works right away, but only for short requests; longer tasks hit its limit, and texts go to its public server.
+- **Free and reliable:** a free key from [Groq](https://console.groq.com/keys) or [Google Gemini](https://aistudio.google.com/apikey) — one minute to get.
 - **Local, free, private:** install [LM Studio](https://lmstudio.ai), download a model (Qwen 3 8B, Gemma 3 12B or bigger if your GPU allows), *Developer → Start server*. Choose *LM Studio* in Polygraph and press *Load list*.
 - **API:** pick a provider, paste a key, load the model list. Keys stay on the device and never go into the vault.
 

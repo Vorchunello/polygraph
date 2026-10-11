@@ -35,22 +35,54 @@ const FATHA = "َ";
 const KASRA = "ِ";
 const DAMMA = "ُ";
 
-// Гласные в арабском — огласовки над согласной, а в начале слова — на алифе.
-// Поэтому значение гласной — пара [после согласной, в начале слова].
-type Glyph = string | [string, string];
+// Гласная зависит от места в слове, поэтому её значение — тройка
+// [после согласной, в начале слова, после гласной]. Третье можно опустить —
+// тогда берётся второе.
+type Glyph = string | [string, string, string?];
 
-const CYR_ARABIC: Record<string, Glyph> = {
-  б: "ب", в: "و", г: "غ", д: "د", ж: "ج", з: "ز", й: "ي", к: "ك", л: "ل", м: "م", н: "ن", п: "ب", р: "ر",
+/**
+ * Как писать гласные в арабском и иврите:
+ *   letters — длинными буквами (ا و ي), как в реальной транслитерации
+ *             иностранных имён: «Москва» → موسكفا, «Иван» → إيفان;
+ *   harakat — огласовками над согласными (у иврита — никуд).
+ */
+export type VowelStyle = "letters" | "harakat";
+
+const CYR_ARABIC_CONS: Record<string, Glyph> = {
+  б: "ب", в: "ف", г: "غ", д: "د", ж: "ج", з: "ز", й: "ي", к: "ك", л: "ل", м: "م", н: "ن", п: "ب", р: "ر",
   с: "س", т: "ت", ф: "ف", х: "خ", ц: "تس", ч: "تش", ш: "ش", щ: "شش", ъ: "", ь: "",
-  а: [FATHA, "أَ"], о: [DAMMA, "أُ"], у: [DAMMA, "أُ"], ы: [KASRA, "إِ"], и: [KASRA, "إِ"], э: [KASRA, "إِ"],
-  е: ["ي" + KASRA, "يِ"], ё: ["ي" + DAMMA, "يُ"], ю: ["ي" + DAMMA, "يُ"], я: ["ي" + FATHA, "يَ"],
 };
 
-const LAT_ARABIC: Record<string, Glyph> = {
+const CYR_ARABIC: Record<VowelStyle, Record<string, Glyph>> = {
+  letters: {
+    ...CYR_ARABIC_CONS,
+    а: ["ا", "ا"], о: ["و", "أو"], у: ["و", "أو"], и: ["ي", "إي"], ы: ["ي", "ي"], э: ["ي", "إ"],
+    е: ["ي", "ي"], ё: ["يو", "يو"], ю: ["يو", "يو"], я: ["يا", "يا"],
+  },
+  // «Я», «е», «ю» после согласной лишь смягчают её — пишем просто огласовку;
+  // йотированное «йа/йе/йу» — только в начале слова и после гласной.
+  harakat: {
+    ...CYR_ARABIC_CONS,
+    а: [FATHA, "أَ"], о: [DAMMA, "أُ"], у: [DAMMA, "أُ"], ы: [KASRA, "إِ"], и: [KASRA, "إِ"], э: [KASRA, "إِ"],
+    е: [KASRA, "يِ"], ё: [DAMMA, "يُ"], ю: [DAMMA, "يُ"], я: [FATHA, "يَ"],
+  },
+};
+
+const LAT_ARABIC_CONS: Record<string, Glyph> = {
   b: "ب", c: "ك", ç: "تش", d: "د", f: "ف", g: "ج", ğ: "غ", h: "ه", j: "ج", k: "ك", l: "ل", m: "م", n: "ن",
   ñ: "ني", p: "ب", q: "ق", r: "ر", s: "س", ş: "ش", t: "ت", v: "ف", w: "و", x: "كس", y: "ي", z: "ز",
-  a: [FATHA, "أَ"], e: [KASRA, "إِ"], i: [KASRA, "إِ"], ı: [KASRA, "إِ"], o: [DAMMA, "أُ"], ö: [DAMMA, "أُ"],
-  u: [DAMMA, "أُ"], ü: [DAMMA, "أُ"],
+};
+
+const LAT_ARABIC: Record<VowelStyle, Record<string, Glyph>> = {
+  letters: {
+    ...LAT_ARABIC_CONS,
+    a: ["ا", "ا"], e: ["ي", "إ"], i: ["ي", "إي"], ı: ["ي", "إي"], o: ["و", "أو"], ö: ["و", "أو"], u: ["و", "أو"], ü: ["و", "أو"],
+  },
+  harakat: {
+    ...LAT_ARABIC_CONS,
+    a: [FATHA, "أَ"], e: [KASRA, "إِ"], i: [KASRA, "إِ"], ı: [KASRA, "إِ"], o: [DAMMA, "أُ"], ö: [DAMMA, "أُ"],
+    u: [DAMMA, "أُ"], ü: [DAMMA, "أُ"],
+  },
 };
 
 const PATAH = "ַ";
@@ -58,18 +90,39 @@ const HIRIQ = "ִ";
 const HOLAM = "ֹ";
 const QUBUTS = "ֻ";
 
-const CYR_HEBREW: Record<string, Glyph> = {
+const CYR_HEBREW_CONS: Record<string, Glyph> = {
   б: "ב", в: "ו", г: "ג", д: "ד", ж: "ז׳", з: "ז", й: "י", к: "ק", л: "ל", м: "מ", н: "נ", п: "פ", р: "ר",
   с: "ס", т: "ט", ф: "פ׳", х: "ח", ц: "צ", ч: "צ׳", ш: "ש", щ: "ש", ъ: "", ь: "",
-  а: [PATAH, "אַ"], о: [HOLAM, "אֹ"], у: [QUBUTS, "אֻ"], ы: [HIRIQ, "אִ"], и: [HIRIQ, "אִ"], э: [HIRIQ, "אִ"],
-  е: ["י" + HIRIQ, "יִ"], ё: ["י" + HOLAM, "יֹ"], ю: ["י" + QUBUTS, "יֻ"], я: ["י" + PATAH, "יַ"],
 };
 
-const LAT_HEBREW: Record<string, Glyph> = {
+const CYR_HEBREW: Record<VowelStyle, Record<string, Glyph>> = {
+  letters: {
+    ...CYR_HEBREW_CONS,
+    а: ["א", "א"], о: ["ו", "או"], у: ["ו", "או"], и: ["י", "אי"], ы: ["י", "אי"], э: ["", "א"],
+    е: ["", "י"], ё: ["יו", "יו"], ю: ["יו", "יו"], я: ["יא", "יא"],
+  },
+  harakat: {
+    ...CYR_HEBREW_CONS,
+    а: [PATAH, "אַ"], о: [HOLAM, "אֹ"], у: [QUBUTS, "אֻ"], ы: [HIRIQ, "אִ"], и: [HIRIQ, "אִ"], э: [HIRIQ, "אִ"],
+    е: [HIRIQ, "יִ"], ё: [HOLAM, "יֹ"], ю: [QUBUTS, "יֻ"], я: [PATAH, "יַ"],
+  },
+};
+
+const LAT_HEBREW_CONS: Record<string, Glyph> = {
   b: "ב", c: "ק", ç: "צ׳", d: "ד", f: "פ", g: "ג", ğ: "ג", h: "ה", j: "ג׳", k: "ק", l: "ל", m: "מ", n: "נ",
   ñ: "ני", p: "פ", q: "ק", r: "ר", s: "ס", ş: "ש", t: "ט", v: "ו", w: "ו", x: "קס", y: "י", z: "ז",
-  a: [PATAH, "אַ"], e: [HIRIQ, "אִ"], i: [HIRIQ, "אִ"], ı: [HIRIQ, "אִ"], o: [HOLAM, "אֹ"], ö: [HOLAM, "אֹ"],
-  u: [QUBUTS, "אֻ"], ü: [QUBUTS, "אֻ"],
+};
+
+const LAT_HEBREW: Record<VowelStyle, Record<string, Glyph>> = {
+  letters: {
+    ...LAT_HEBREW_CONS,
+    a: ["א", "א"], e: ["", "א"], i: ["י", "אי"], ı: ["י", "אי"], o: ["ו", "או"], ö: ["ו", "או"], u: ["ו", "או"], ü: ["ו", "או"],
+  },
+  harakat: {
+    ...LAT_HEBREW_CONS,
+    a: [PATAH, "אַ"], e: [HIRIQ, "אִ"], i: [HIRIQ, "אִ"], ı: [HIRIQ, "אִ"], o: [HOLAM, "אֹ"], ö: [HOLAM, "אֹ"],
+    u: [QUBUTS, "אֻ"], ü: [QUBUTS, "אֻ"],
+  },
 };
 
 const CYR_GREEK: Record<string, Glyph> = {
@@ -116,15 +169,17 @@ export const BRAILLE: Record<string, string> = {
   щ: "⠭", ъ: "⠷", ы: "⠮", ь: "⠾", э: "⠪", ю: "⠳", я: "⠫",
 };
 
+const VOWELS = new Set("аеёиоуыэюяaeiıouöüy");
+
 const isCyr = (ch: string) => /[Ѐ-ӿ]/.test(ch);
 
 /** Таблица для пары «буква исходника → цель». null — пары нет. */
-export function glyphTable(target: ScriptId, sourceIsCyrillic: boolean): Record<string, Glyph> | null {
+export function glyphTable(target: ScriptId, sourceIsCyrillic: boolean, vowels: VowelStyle = "letters"): Record<string, Glyph> | null {
   switch (target) {
     case "arabic":
-      return sourceIsCyrillic ? CYR_ARABIC : LAT_ARABIC;
+      return (sourceIsCyrillic ? CYR_ARABIC : LAT_ARABIC)[vowels];
     case "hebrew":
-      return sourceIsCyrillic ? CYR_HEBREW : LAT_HEBREW;
+      return (sourceIsCyrillic ? CYR_HEBREW : LAT_HEBREW)[vowels];
     case "greek":
       return sourceIsCyrillic ? CYR_GREEK : LAT_GREEK;
     case "cyrillic":
@@ -147,8 +202,6 @@ export function detectCyrillic(text: string): boolean {
   }
   return cyr >= lat;
 }
-
-const VOWELS = new Set("аеёиоуыэюяaeiıouöüy");
 
 /**
  * Порядок замены букв: сначала согласные от частых к редким — так эффект
@@ -174,8 +227,15 @@ export function morphWord(word: string, table: Record<string, Glyph>, replaced: 
       return;
     }
     const g = table[low];
-    // Гласная в начале слова в арабском и иврите садится на алиф.
-    out.push(Array.isArray(g) ? (i === 0 ? g[1] : g[0]) : g);
+    if (!Array.isArray(g)) {
+      out.push(g);
+      return;
+    }
+    // Гласная в начале слова садится на алиф; после другой гласной (и после
+    // ь/ъ) нужна своя опора — как в начале слова.
+    const prev = chars[i - 1]?.toLowerCase();
+    const afterVowel = !!prev && (VOWELS.has(prev) || prev === "ь" || prev === "ъ");
+    out.push(i === 0 ? g[1] : afterVowel ? g[2] ?? g[1] : g[0]);
   });
   // Коды: каждый знак отдельно, иначе «.-» и «-...» сольются в нечитаемое.
   return code ? out.filter(Boolean).join(" ") : out.join("");

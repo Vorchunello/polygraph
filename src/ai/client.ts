@@ -8,7 +8,20 @@ export interface CompletionRequest {
   maxTokens?: number;
 }
 
-export class AiError extends Error {}
+/**
+ * Ошибка ИИ. code — причина, которую интерфейс переводит в понятный совет:
+ *   limit   — модель не успела ответить (лимит токенов бесплатного сервиса);
+ *   payment — сервис требует ключ или оплату;
+ *   json    — ответ так и не стал корректным JSON.
+ */
+export class AiError extends Error {
+  constructor(
+    message: string,
+    readonly code?: "limit" | "payment" | "json",
+  ) {
+    super(message);
+  }
+}
 
 export async function complete(cfg: AiConfig, req: CompletionRequest): Promise<string> {
   const text = cfg.kind === "anthropic" ? await completeAnthropic(cfg, req) : await completeOpenAI(cfg, req);
@@ -33,7 +46,8 @@ async function completeOpenAI(cfg: AiConfig, req: CompletionRequest): Promise<st
   }
   const body = JSON.stringify({
     model: cfg.model,
-    max_tokens: req.maxTokens ?? 4000,
+    // Pollinations без ключа отвечает 402 на любой запрос с max_tokens.
+    ...(cfg.preset === "free" ? {} : { max_tokens: req.maxTokens ?? 4000 }),
     messages: [
       { role: "system", content: req.system },
       { role: "user", content: req.prompt },
@@ -52,15 +66,19 @@ async function completeOpenAI(cfg: AiConfig, req: CompletionRequest): Promise<st
     await new Promise((r) => setTimeout(r, (retryAfter > 0 ? Math.min(retryAfter, 30) : 3 * (attempt + 1)) * 1000));
   }
   const raw = await res.text();
+  if (res.status === 402) throw new AiError(`HTTP 402: ${raw.slice(0, 200)}`, "payment");
   if (!res.ok) throw new AiError(`HTTP ${res.status}: ${raw.slice(0, 400)}`);
+  let data: { choices?: { message?: { content?: unknown }; finish_reason?: string }[] };
   try {
-    const data = JSON.parse(raw);
-    const content = data.choices?.[0]?.message?.content;
-    if (typeof content !== "string") throw new Error("no content");
-    return content;
+    data = JSON.parse(raw);
   } catch {
     throw new AiError(`Unexpected response: ${raw.slice(0, 400)}`);
   }
+  const choice = data.choices?.[0];
+  const content = typeof choice?.message?.content === "string" ? choice.message.content : "";
+  // «Думающие» модели могут потратить весь лимит на рассуждение и не написать ответ.
+  if (!content.trim()) throw new AiError("The model returned an empty answer", choice?.finish_reason === "length" ? "limit" : undefined);
+  return content;
 }
 
 // Модели, у которых есть серверный откат при отказе классификатора.

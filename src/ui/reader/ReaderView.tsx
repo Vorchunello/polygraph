@@ -4,7 +4,7 @@ import { langName } from "../../core/languages";
 import { pageCount, parseBookFile, parsePlain, type Book } from "../../core/reader";
 import { useT } from "../../i18n";
 import { pdfParagraphs, webArticle } from "../../storage/documents";
-import { LangChip, Modal, pickBinaryFile, pickImage, useAsync } from "../common";
+import { LangChip, LangFilter, Modal, pickBinaryFile, pickImage, useAsync } from "../common";
 import { OcrDialog } from "../OcrDialog";
 import { useApp } from "../state";
 import { BookReader } from "./BookReader";
@@ -24,6 +24,7 @@ export function ReaderView() {
   const [pasting, setPasting] = useState(false);
   const [linking, setLinking] = useState(false);
   const [photo, setPhoto] = useState<Blob | null>(null);
+  const [allLangs, setAllLangs] = useState(false);
   const job = useAsync();
 
   const load = () => app.repo.loadBooks().then(setBooks);
@@ -81,9 +82,13 @@ export function ReaderView() {
       <p className="muted">{t("reader.hint")}</p>
       {job.busy && <p className="muted small">{t("common.loading")}</p>}
       {job.error && <p className="error">{job.error}</p>}
+      <LangFilter all={allLangs} onChange={setAllLangs} lang={app.target} />
       {books && books.length === 0 && <div className="empty">{t("reader.empty")}</div>}
       <ul className="list">
-        {books?.map((b) => (
+        {books
+          // Книги на изучаемом языке и на знакомых (для режима тукана); остальное — по переключателю.
+          ?.filter((b) => allLangs || b.lang === app.target || app.profile.known.some((k) => k.code === b.lang))
+          .map((b) => (
           <li key={b.id} className="row gap">
             <button className="list-item" onClick={() => setOpen(b)}>
               <LangChip code={b.lang} />

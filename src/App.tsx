@@ -158,7 +158,8 @@ function Shell() {
           </li>
         </ul>
       </nav>
-      <main className="main">
+      {/* Смена изучаемого языка перезапускает раздел: никаких «застрявших» сессий на старом языке. */}
+      <main className="main" key={app.target}>
         {view === "home" && <HomeView go={go} />}
         {view === "words" && <WordsView />}
         {view === "study" && <StudyView />}

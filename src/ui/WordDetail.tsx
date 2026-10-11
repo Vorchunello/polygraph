@@ -2,12 +2,14 @@ import { useState } from "react";
 import { aiReady } from "../ai/config";
 import { draftConcept, explain, type ConceptDraft } from "../ai/tasks";
 import { translateText } from "../ai/translate";
+import { lookupWiktionary, wiktionaryContext, type WiktionaryEntry } from "../storage/wiktionary";
 import { today } from "../core/dates";
 import { langInfo, langName } from "../core/languages";
 import type { Bridge, BridgeKind, Concept, Example, Term } from "../core/types";
 import { useT } from "../i18n";
 import { BridgeBadge, GenderBadge, LangChip, Modal, SpeakButton, TermText, useAsync } from "./common";
 import { Markdown } from "./Markdown";
+import { PronounceButton } from "./PronounceButton";
 import { useApp } from "./state";
 
 export function conceptFromDraft(d: ConceptDraft, id: string): Concept {
@@ -21,6 +23,13 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
   const { target, profile } = app;
   const [editing, setEditing] = useState(false);
   const [answer, setAnswer] = useState("");
+  const [wiki, setWiki] = useState<WiktionaryEntry | "none" | null>(null);
+  const wikiJob = useAsync();
+  const lookWiki = () =>
+    wikiJob.run(async () => {
+      const term = concept.terms[app.target];
+      setWiki(term ? (await lookupWiktionary(term.text, app.target)) ?? "none" : "none");
+    });
   const ai = useAsync();
   const langs = [target, ...profile.known.map((k) => k.code).filter((c) => c !== target)];
   const extra = Object.keys(concept.terms).filter((c) => !langs.includes(c));
@@ -64,6 +73,7 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
         <TermText term={main} lang={target} big />
         <GenderBadge gender={main?.gender} />
         {main && <SpeakButton text={[main.article, main.text].filter(Boolean).join(" ")} lang={target} />}
+        {main && <PronounceButton text={main.text} lang={target} />}
       </div>
 
       <h3>{t("word.terms")}</h3>
@@ -101,13 +111,59 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
         ))}
       </ul>
 
-      {concept.etymology && (
-        <>
-          <h3>
-            {t("word.etymology")} {!concept.etymologyVerified && <span className="badge warn">{t("word.unverified")}</span>}
-          </h3>
-          <p>{concept.etymology}</p>
-        </>
+      <h3>
+        {t("word.etymology")}{" "}
+        {concept.etymologyVerified ? (
+          <span className="badge ok">✓ {t("word.verified")}</span>
+        ) : concept.etymologySource === "wiktionary" ? (
+          <span className="badge ok">{t("wiki.based")}</span>
+        ) : (
+          concept.etymology && <span className="badge warn">{t("word.unverified")}</span>
+        )}
+      </h3>
+      {concept.etymology && <p>{concept.etymology}</p>}
+      {!wiki && (
+        <button className="btn small" disabled={wikiJob.busy} onClick={lookWiki}>
+          {wikiJob.busy ? t("common.loading") : `📖 ${t("wiki.check")}`}
+        </button>
+      )}
+      {wikiJob.error && <p className="error small">{wikiJob.error}</p>}
+      {wiki === "none" && <p className="muted small">{t("wiki.notFound")}</p>}
+      {wiki && wiki !== "none" && (
+        <div className="wiki-card">
+          {wiki.etymology && (
+            <p>
+              <span className="muted small">{t("word.etymology")}: </span>
+              {wiki.etymology}
+            </p>
+          )}
+          {wiki.definitions.length > 0 && (
+            <ol className="small">
+              {wiki.definitions.map((d, i) => (
+                <li key={i}>{d}</li>
+              ))}
+            </ol>
+          )}
+          <div className="row gap wrap">
+            <a href={wiki.url} target="_blank" rel="noreferrer" className="small">
+              Wiktionary (CC BY-SA) ↗
+            </a>
+            <span className="grow" />
+            {wiki.etymology && (
+              <button
+                className="btn small"
+                onClick={() => app.saveConcept({ ...concept, etymology: wiki.etymology, etymologyVerified: true, etymologySource: "wiktionary" })}
+              >
+                {t("wiki.use")}
+              </button>
+            )}
+            {concept.etymology && !concept.etymologyVerified && (
+              <button className="btn small primary" onClick={() => app.saveConcept({ ...concept, etymologyVerified: true })}>
+                ✓ {t("wiki.matches")}
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {concept.examples.length > 0 && (
@@ -190,8 +246,15 @@ export function AddWord({ onClose, initialText = "", onSaved }: { onClose(): voi
   const fill = () =>
     ai.run(async () => {
       if (!aiReady(app.ai)) throw new Error(t("common.aiNotReady"));
-      const d = await draftConcept(app.ai, app.profile, app.target, text.trim(), hint.trim());
-      setDraft(conceptFromDraft(d, app.newId(d.terms[app.target].text)));
+      // Сначала словарь: если слово есть в Викисловаре, ИИ пересказывает его, а не вспоминает.
+      const dict = await Promise.race([
+        lookupWiktionary(text.trim(), app.target).catch(() => null),
+        new Promise<null>((r) => setTimeout(() => r(null), 6000)),
+      ]);
+      const d = await draftConcept(app.ai, app.profile, app.target, text.trim(), hint.trim(), dict ? wiktionaryContext(dict) : "");
+      const c = conceptFromDraft(d, app.newId(d.terms[app.target].text));
+      if (dict?.etymology && c.etymology) c.etymologySource = "wiktionary";
+      setDraft(c);
       setFromAi(true);
     });
 

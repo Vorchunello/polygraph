@@ -1401,12 +1401,6 @@ textarea.input {
 .adapt-text p {
   margin: 0 0 12px;
 }
-/* Справа налево буквально: каждая буква ложится справа налево. */
-.adapt-text.flipped {
-  direction: rtl;
-  unicode-bidi: bidi-override;
-  text-align: right;
-}
 .adapt-text.code {
   font-family: var(--mono);
   white-space: pre-wrap;
@@ -2160,4 +2154,105 @@ progress {
   .palette-btn kbd {
     display: none;
   }
+}
+
+/* adaptation v0.4 */
+.adapt-sentence {
+  cursor: pointer;
+  border-radius: 4px;
+}
+.adapt-sentence:hover,
+.adapt-sentence.shown {
+  background: var(--accent-soft);
+}
+.adapt-text[dir="rtl"] {
+  text-align: start;
+}
+.challenge-bar {
+  margin: -4px 0 10px;
+}
+.original-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: grid;
+  gap: 8px;
+}
+.original-card p {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+}
+
+.wiki-card {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 6px 0 4px;
+}
+.wiki-card p {
+  margin: 0 0 6px;
+}
+.wiki-card ol {
+  margin: 0 0 8px;
+  padding-inline-start: 18px;
+}
+
+.pronounce {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.recording {
+  border-color: var(--bad) !important;
+  color: var(--bad);
+}
+.warn-text {
+  color: var(--warn);
+}
+.error-text {
+  color: var(--bad);
+}
+
+/* home: streak and focus timer */
+.streak {
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.streak.on {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.focus-timer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+.focus-timer.break {
+  border-color: var(--ok);
+}
+.focus-time {
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  min-width: 5ch;
+}
+.hint-btn {
+  align-self: center;
+}
+.hint-list {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 8px 10px;
 }

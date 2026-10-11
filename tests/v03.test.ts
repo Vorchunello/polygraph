@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { buildDrill, guessMatches, pickWords, trapPairsFromDictionary } from "../src/core/games";
+import { speechScore } from "../src/core/similarity";
+import { studyStreak } from "../src/core/srs";
+import { isSilent } from "../src/storage/speech";
+import { guessKnownLang } from "../src/ui/AdaptView";
+import { extractJson } from "../src/ai/json";
+import { maskWord } from "../src/ui/StudyView";
 import { anchorSplit, minutesLeft, rhythmSentences, rsvpDelay, rsvpTokens } from "../src/core/readingModes";
 import { parseBookFile, parseSubtitles } from "../src/core/reader";
 import type { Concept } from "../src/core/types";
@@ -118,5 +124,71 @@ Muy bien.`;
   it("reads WebVTT through the book importer", () => {
     const vtt = "WEBVTT\n\n00:01.000 --> 00:02.000\nUno\n\n00:02.100 --> 00:03.000\nDos";
     expect(parseBookFile("clip.vtt", new TextEncoder().encode(vtt))).toEqual({ title: "clip", paragraphs: ["Uno Dos"] });
+  });
+});
+
+describe("streak", () => {
+  const withLast = (id: string, last: string) => mk(id, id, id, { srs: { es: { due: last, interval: 1, ease: 2.5, reps: 1, lapses: 0, last } } });
+
+  it("counts consecutive study days", () => {
+    const cs = [withLast("a", "2026-10-11"), withLast("b", "2026-10-10"), withLast("c", "2026-10-09"), withLast("d", "2026-10-07")];
+    expect(studyStreak(cs, "2026-10-11")).toEqual({ days: 3, today: true });
+  });
+
+  it("keeps yesterday's streak alive until the day is over", () => {
+    expect(studyStreak([withLast("a", "2026-10-10")], "2026-10-11")).toEqual({ days: 1, today: false });
+    expect(studyStreak([withLast("a", "2026-10-08")], "2026-10-11")).toEqual({ days: 0, today: false });
+  });
+});
+
+describe("bridge hint", () => {
+  it("hides the answer inside the hint", () => {
+    expect(maskWord("Общий корень: ночь — noche — night.", "noche")).toBe("Общий корень: ночь — … — night.");
+    expect(maskWord("Noche и noche", "noche")).toBe("… и …");
+    expect(maskWord("a+b (c)", "a+b")).toBe("… (c)");
+  });
+});
+
+describe("pronunciation score", () => {
+  it("rewards close matches and ignores case, accents and articles", () => {
+    expect(speechScore("Noche.", "noche")).toBe(1);
+    expect(speechScore("la noche", "noche")).toBe(0.95);
+    expect(speechScore("canción", "cancion")).toBe(1);
+    expect(speechScore("noce", "noche")).toBeGreaterThan(0.7);
+    expect(speechScore("perro", "noche")).toBeLessThan(0.3);
+  });
+});
+
+describe("truncated AI answers", () => {
+  it("keeps the complete items of a JSON cut off mid-way", () => {
+    const cut = '{"s":[{"tgt":"uno","level":1,"chunks":[{"src":"a","tgt":"b"}]},{"tgt":"dos","level":2,"chunks":[]},{"tgt":"tr';
+    const r = extractJson<{ s: { tgt: string }[] }>(cut);
+    expect(r.s.map((x) => x.tgt)).toEqual(["uno", "dos"]);
+  });
+
+  it("handles an unclosed code fence and commas inside strings", () => {
+    const r = extractJson<{ notes: { title: string }[] }>('```json\n{"notes":[{"title":"a, b"},{"title":"c"');
+    expect(r.notes.map((n) => n.title)).toEqual(["a, b"]);
+  });
+
+  it("still fails clearly on hopeless output", () => {
+    expect(() => extractJson("no json here")).toThrow();
+  });
+});
+
+describe("adaptation source language", () => {
+  it("guesses the known language from the alphabet of the pasted text", () => {
+    expect(guessKnownLang("Я иду в школу.", ["en", "tr", "ru"])).toBe("ru");
+    expect(guessKnownLang("Okula gidiyorum.", ["ru", "tr"])).toBe("tr");
+    expect(guessKnownLang("Я иду в школу.", ["en", "tr"])).toBeNull();
+    expect(guessKnownLang("ok", ["en"])).toBeNull();
+  });
+});
+
+describe("silence check", () => {
+  it("does not send silence to speech recognition", () => {
+    expect(isSilent(new Float32Array(16000))).toBe(true);
+    const tone = Float32Array.from({ length: 16000 }, (_, i) => 0.3 * Math.sin(i / 10));
+    expect(isSilent(tone)).toBe(false);
   });
 });

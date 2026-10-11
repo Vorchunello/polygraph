@@ -49,9 +49,23 @@ export function NotesView() {
     return id;
   };
 
-  const startNew = (title = "") => {
+  const startNew = (title = "", body = "") => {
     setCurrent(null);
-    setDraft({ title, body: "" });
+    setDraft({ title, body });
+    setEditing(true);
+  };
+
+  // Заметка дня: одна на дату, открывается, если уже есть.
+  const openDaily = () => {
+    const id = `daily-${today()}`;
+    const existing = notes.find((n) => n.id === id);
+    if (existing) {
+      setCurrent(existing);
+      setEditing(false);
+      return;
+    }
+    setCurrent({ id, title: today(), body: "", tags: ["daily"], created: today(), updated: today() });
+    setDraft({ title: today(), body: t("notes.tpl.daily") });
     setEditing(true);
   };
 
@@ -116,9 +130,19 @@ export function NotesView() {
       <aside className="notes-side">
         <div className="row gap">
           <h1 className="grow">{t("nav.notes")}</h1>
+          <button className="btn" onClick={openDaily} title={t("notes.daily")}>
+            📅
+          </button>
           <button className="btn primary" onClick={() => startNew()}>
             +
           </button>
+        </div>
+        <div className="row gap wrap">
+          {(["word", "rule", "mistake"] as const).map((k) => (
+            <button key={k} className="chip-btn small-chip" onClick={() => startNew("", t(`notes.tpl.${k}`))}>
+              + {t(`notes.tplName.${k}`)}
+            </button>
+          ))}
         </div>
         <input className="input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("notes.search")} />
         {query.trim() && (

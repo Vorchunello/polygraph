@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { isRtl, langName, LANGUAGES, LEVELS, type Level } from "../core/languages";
 import type { Bridge, LanguageSkill, Term } from "../core/types";
+import { AiError } from "../ai/client";
 import { useT } from "../i18n";
 import { platform } from "../storage/platform";
 import { canSpeak, speakAsync, stopSpeaking } from "../storage/tts";
@@ -199,7 +200,26 @@ export function LanguagePicker({
   );
 }
 
+/**
+ * Переключатель «только активный язык / все языки» для списков, где лежат
+ * материалы на разных языках (книги, тексты для адаптации, плейлисты).
+ */
+export function LangFilter({ all, onChange, lang }: { all: boolean; onChange(all: boolean): void; lang: string }) {
+  const { t, lang: ui } = useT();
+  return (
+    <div className="segmented lang-filter">
+      <button className={!all ? "on" : ""} onClick={() => onChange(false)}>
+        {t("common.onlyLang", { lang: langName(lang, ui) })}
+      </button>
+      <button className={all ? "on" : ""} onClick={() => onChange(true)}>
+        {t("common.allLangs")}
+      </button>
+    </div>
+  );
+}
+
 export function useAsync() {
+  const { t } = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const run = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
@@ -208,7 +228,8 @@ export function useAsync() {
     try {
       return await fn();
     } catch (e) {
-      setError((e as Error).message);
+      // Известные причины (лимит бесплатного сервиса, нужен ключ, мусор вместо JSON) — с советом, что делать.
+      setError(e instanceof AiError && e.code ? t(`ai.err.${e.code}`) : (e as Error).message);
       return undefined;
     } finally {
       setBusy(false);

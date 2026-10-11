@@ -2,7 +2,31 @@ import { langInfo, langName } from "../core/languages";
 import type { Bridge, Concept, Example, LangCode, Profile, Route, Term } from "../core/types";
 import { complete } from "./client";
 import type { AiConfig } from "./config";
+import { AiError } from "./client";
 import { extractJson } from "./json";
+
+/**
+ * Запрос, ответ на который должен быть JSON. Если модель ответила мусором,
+ * просим ещё раз, явно: «только JSON». Вторая неудача — понятная ошибка.
+ */
+async function completeJson<T>(cfg: AiConfig, req: { system: string; prompt: string; maxTokens?: number }): Promise<T> {
+  const first = await complete(cfg, req);
+  try {
+    return extractJson<T>(first);
+  } catch {
+    const again = await complete(cfg, {
+      ...req,
+      prompt: `${req.prompt}
+
+Your previous answer was not valid JSON. Reply again with the JSON object only — no explanations, no reasoning, no code fences.`,
+    });
+    try {
+      return extractJson<T>(again);
+    } catch {
+      throw new AiError("The model did not return valid JSON", "json");
+    }
+  }
+}
 
 // Промпты пишутся по-английски — так их одинаково понимают и облачные,
 // и маленькие локальные модели. Ответ — на языке интерфейса ученика.
@@ -39,6 +63,8 @@ export async function draftConcept(
   target: LangCode,
   word: string,
   hint = "",
+  /** Данные словаря (Викисловарь) — опора для этимологии и значений. */
+  dictionary = "",
 ): Promise<ConceptDraft> {
   const langs = [target, ...profile.known.map((k) => k.code).filter((c) => c !== target)];
   const level = profile.learning.find((l) => l.code === target)?.level ?? "A1";
@@ -55,6 +81,9 @@ export async function draftConcept(
 
   const prompt = [
     `Input: «${word}»${hint ? ` (context: ${hint})` : ""}.`,
+    dictionary
+      ? `Dictionary entry for this word from Wiktionary — treat it as ground truth for the etymology and meanings; summarise it, do not contradict it:\n${dictionary}\n`
+      : "",
     `It may be written in any language. Identify the concept and give it in ${langName(target, "en")} [${target}] — the main entry — and in every known language.`,
     "",
     "JSON shape:",
@@ -78,8 +107,7 @@ export async function draftConcept(
     .filter((l) => l !== "")
     .join("\n");
 
-  const text = await complete(cfg, { system, prompt, maxTokens: 3000 });
-  const raw = extractJson<Partial<ConceptDraft>>(text);
+  const raw = await completeJson<Partial<ConceptDraft>>(cfg, { system, prompt, maxTokens: 3000 });
   return normalizeDraft(raw, target);
 }
 
@@ -215,8 +243,7 @@ export async function translateParagraphs(
     `Reply with JSON only: {"t": ["translation of paragraph 1", ...]} — exactly ${paragraphs.length} strings, in order.`,
   ].join("\n");
   const prompt = paragraphs.map((p, i) => `[${i + 1}] ${p}`).join("\n\n");
-  const text = await complete(cfg, { system, prompt, maxTokens: 6000 });
-  const t = extractJson<{ t?: unknown[] }>(text).t ?? [];
+  const t = (await completeJson<{ t?: unknown[] }>(cfg, { system, prompt, maxTokens: 6000 })).t ?? [];
   return paragraphs.map((_, i) => (typeof t[i] === "string" ? (t[i] as string) : ""));
 }
 
@@ -246,8 +273,7 @@ export async function analyzeForAdaptation(
     `Reply with JSON only: {"s": [{"tgt": "...", "level": 1, "chunks": [{"src": "...", "tgt": "..."}]}, ...]} — exactly ${sentences.length} items, in order.`,
   ].join("\n");
   const prompt = sentences.map((s, i) => `[${i + 1}] ${s}`).join("\n");
-  const text = await complete(cfg, { system, prompt, maxTokens: 8000 });
-  const raw = extractJson<{ s?: Partial<AdaptAnalysis>[] }>(text).s ?? [];
+  const raw = (await completeJson<{ s?: Partial<AdaptAnalysis>[] }>(cfg, { system, prompt, maxTokens: 8000 })).s ?? [];
   return sentences.map((src, i) => {
     const r = raw[i] ?? {};
     const level = [1, 2, 3].includes(Number(r.level)) ? (Number(r.level) as 1 | 2 | 3) : 2;
@@ -284,8 +310,7 @@ export async function buildLadder(
   const prompt = [topic ? `Topic: ${topic}.` : "", words.length ? `Use these words from the learner's dictionary where natural: ${words.join(", ")}.` : ""]
     .filter(Boolean)
     .join("\n") || "General everyday topic.";
-  const text = await complete(cfg, { system, prompt, maxTokens: 8000 });
-  const r = extractJson<{ title?: string; steps?: { tgt?: string; native?: string }[] }>(text);
+  const r = await completeJson<{ title?: string; steps?: { tgt?: string; native?: string }[] }>(cfg, { system, prompt, maxTokens: 8000 });
   const steps = (r.steps ?? []).filter((s) => s?.tgt && s.native).map((s) => ({ tgt: String(s.tgt), native: String(s.native) }));
   if (!steps.length) throw new Error("The model returned an empty playlist");
   return { title: r.title ? String(r.title) : topic || t, steps };
@@ -333,8 +358,7 @@ export async function makeNotes(
   ]
     .filter(Boolean)
     .join("\n\n");
-  const text = await complete(cfg, { system, prompt: `Topic: ${topic}`, maxTokens: 8000 });
-  const r = extractJson<{ notes?: { title?: string; body?: string }[] }>(text);
+  const r = await completeJson<{ notes?: { title?: string; body?: string }[] }>(cfg, { system, prompt: `Topic: ${topic}`, maxTokens: 8000 });
   const notes = (r.notes ?? []).filter((n) => n?.title && n.body).map((n) => ({ title: String(n.title).trim(), body: String(n.body) }));
   if (!notes.length) throw new Error("The model returned no notes");
   return notes;
@@ -374,8 +398,7 @@ export async function makeSennaar(cfg: AiConfig, profile: Profile, target: LangC
     `- "word" must be written exactly as it appears in the scenes (one form; if it inflects, list the most frequent form).`,
     `Reply with JSON only: {"title": "...", "words": [{"word": "...", "meaning": "...", "accept": ["..."]}], "scenes": [{"emoji": "...", "text": "..."}]}`,
   ].join("\n");
-  const text = await complete(cfg, { system, prompt: "Create the puzzle.", maxTokens: 5000 });
-  const r = extractJson<Partial<SennaarSet>>(text);
+  const r = await completeJson<Partial<SennaarSet>>(cfg, { system, prompt: "Create the puzzle.", maxTokens: 5000 });
   const words = (r.words ?? [])
     .filter((w) => w?.word && w.meaning)
     .map((w) => ({ word: String(w.word), meaning: String(w.meaning), accept: Array.isArray(w.accept) ? w.accept.map(String) : [] }));
@@ -401,8 +424,7 @@ export async function makeTrapPairs(cfg: AiConfig, profile: Profile, target: Lan
     `Explanations in ${uiLanguage(profile)}, one or two sentences, giving both meanings.`,
     `Reply with JSON only: {"pairs": [{"a": {"lang": "${target}", "text": "..."}, "b": {"lang": "<known code>", "text": "..."}, "trap": true, "explain": "..."}]} — ${count} items, mixed languages.`,
   ].join("\n");
-  const text = await complete(cfg, { system, prompt: "Make the quiz.", maxTokens: 4000 });
-  const r = extractJson<{ pairs?: Partial<AiTrapPair>[] }>(text);
+  const r = await completeJson<{ pairs?: Partial<AiTrapPair>[] }>(cfg, { system, prompt: "Make the quiz.", maxTokens: 4000 });
   return (r.pairs ?? [])
     .filter((p) => p?.a?.text && p.b?.text && typeof p.trap === "boolean")
     .map((p) => ({

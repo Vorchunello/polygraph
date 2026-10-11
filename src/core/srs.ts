@@ -56,3 +56,20 @@ export function buildQueue(concepts: Concept[], lang: LangCode, newLimit = 10, n
   const fresh = withTerm.filter((c) => isNew(c, lang)).slice(0, newLimit);
   return [...due, ...fresh];
 }
+
+/**
+ * Серия дней подряд, когда было хоть одно повторение. Если сегодня ещё не
+ * занимался, серия не обрывается — считается до вчера.
+ */
+export function studyStreak(concepts: Concept[], now: string = today()): { days: number; today: boolean } {
+  const days = new Set<string>();
+  for (const c of concepts) for (const s of Object.values(c.srs)) if (s.last) days.add(s.last);
+  const studiedToday = days.has(now);
+  let cursor = studiedToday ? now : addDays(now, -1);
+  let n = 0;
+  while (days.has(cursor)) {
+    n++;
+    cursor = addDays(cursor, -1);
+  }
+  return { days: n, today: studiedToday };
+}

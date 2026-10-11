@@ -1,7 +1,7 @@
 {
   "name": "polygraph",
   "productName": "Polygraph",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Learn languages through the languages you already know",
   "author": "Vorchunello",
   "license": "MIT",
@@ -17,7 +17,8 @@
     "electron:dev": "cross-env POLYGRAPH_DEV_URL=http://127.0.0.1:5173 electron .",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
-    "android:sync": "npm run build && cap sync android"
+    "android:sync": "npm run build && cap sync android",
+    "mcp": "node mcp/server.mjs"
   },
   "build": {
     "appId": "io.github.vorchunello.polygraph",
@@ -51,30 +52,32 @@
     "publish": null
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.133.0",
     "@capacitor-community/text-to-speech": "^4.1.1",
     "@capacitor/core": "^6.2.2",
     "@capacitor/filesystem": "^6.0.4",
-    "@capacitor/preferences": "^6.0.4",
-    "@mozilla/readability": "^0.6.0",
-    "fflate": "^0.8.3",
-    "pdfjs-dist": "^4.8.69",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tesseract.js": "^7.0.0",
-    "yaml": "^2.9.1"
+    "@capacitor/preferences": "^6.0.4"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@capacitor/android": "^6.2.2",
     "@capacitor/cli": "^6.2.2",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@mozilla/readability": "^0.6.0",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
     "cross-env": "^10.1.0",
     "electron": "^44.7.0",
     "electron-builder": "^26.15.3",
+    "fflate": "^0.8.3",
+    "pdfjs-dist": "^4.8.69",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tesseract.js": "^7.0.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
   }
 }

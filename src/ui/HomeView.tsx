@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { presetById } from "../ai/config";
 import { today } from "../core/dates";
 import { langName } from "../core/languages";
-import { isDue, isNew } from "../core/srs";
+import { isDue, isNew, studyStreak } from "../core/srs";
 import { useT } from "../i18n";
+import { FocusTimer } from "./FocusTimer";
 import type { ViewId } from "./nav";
 import { useApp } from "./state";
 
@@ -27,6 +28,7 @@ export function HomeView({ go }: { go(v: ViewId): void }) {
   }, [concepts, target]);
 
   const preset = presetById(app.ai.preset);
+  const streak = useMemo(() => studyStreak(concepts), [concepts]);
 
   return (
     <section className="view narrow">
@@ -59,7 +61,12 @@ export function HomeView({ go }: { go(v: ViewId): void }) {
         )}
       </div>
 
-      <h1>{langName(target, lang)}</h1>
+      <div className="row gap between wrap">
+        <h1>{langName(target, lang)}</h1>
+        <span className={`streak ${streak.today ? "on" : ""}`} title={streak.today ? t("home.streakToday") : t("home.streakKeep")}>
+          🔥 {t("home.streak", { n: streak.days })}
+        </span>
+      </div>
       <div className="stat-row">
         <button className="stat" onClick={() => go("study")}>
           <span className="stat-num">{stats.due}</span>
@@ -78,6 +85,8 @@ export function HomeView({ go }: { go(v: ViewId): void }) {
           <span className="stat-label">{t("home.traps")}</span>
         </button>
       </div>
+
+      <FocusTimer />
 
       <form
         className="row gap capture"
@@ -111,6 +120,14 @@ export function HomeView({ go }: { go(v: ViewId): void }) {
         ))}
       </div>
 
+      {preset.free === "nokey" && (
+        <p className="notice small">
+          {t("home.aiTip")}{" "}
+          <button className="btn-link" onClick={() => go("settings")}>
+            {t("nav.settings")} →
+          </button>
+        </p>
+      )}
       <p className="muted small">
         {t("home.ai", { name: preset.label })}
         {preset.free === "nokey" && ` · ${t("set.freeNoKey")}`}

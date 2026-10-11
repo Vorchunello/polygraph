@@ -5,6 +5,7 @@ import { buildQueue, isDue, isNew, review, type Grade } from "../core/srs";
 import type { Concept } from "../core/types";
 import { useT } from "../i18n";
 import { BridgeBadge, GenderBadge, LangChip, SpeakButton, TermText, speak } from "./common";
+import { PronounceButton } from "./PronounceButton";
 import { useApp } from "./state";
 
 type Mode = "recognize" | "recall";
@@ -18,6 +19,13 @@ export function sameAnswer(given: string, expected: string, article?: string): b
   return g === e || (!!article && g === norm(`${article} ${expected}`));
 }
 
+/** Подсказка не должна выдавать ответ: само слово в ней заменяется многоточием. */
+export function maskWord(note: string, word: string): string {
+  if (!word) return note;
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return note.replace(new RegExp(escaped, "giu"), "…");
+}
+
 export function StudyView() {
   const { t, lang } = useT();
   const app = useApp();
@@ -28,11 +36,17 @@ export function StudyView() {
   const [typed, setTyped] = useState("");
   const [checked, setChecked] = useState<boolean | null>(null);
   const [done, setDone] = useState(0);
+  const [source, setSource] = useState<"due" | "traps">("due");
+  const [hint, setHint] = useState(false);
 
   const now = today();
   const stats = useMemo(() => {
     const withTerm = concepts.filter((c) => c.terms[target]);
-    return { due: withTerm.filter((c) => isDue(c, target, now)).length, fresh: withTerm.filter((c) => isNew(c, target)).length };
+    return {
+      due: withTerm.filter((c) => isDue(c, target, now)).length,
+      fresh: withTerm.filter((c) => isNew(c, target)).length,
+      traps: withTerm.filter((c) => c.bridges.some((b) => b.strength === "broken")).length,
+    };
   }, [concepts, target, now]);
 
   const known = profile.known.map((k) => k.code).filter((c) => c !== target);
@@ -47,7 +61,12 @@ export function StudyView() {
   }, [card?.id, mode, target, app.prefs.autoplay]);
 
   const start = () => {
-    setQueue(buildQueue(concepts, target, app.prefs.newPerDay));
+    // «Только ловушки» — прогон всех слов с ложными мостами, независимо от сроков.
+    setQueue(
+      source === "traps"
+        ? concepts.filter((c) => c.terms[target] && c.bridges.some((b) => b.strength === "broken")).sort(() => Math.random() - 0.5)
+        : buildQueue(concepts, target, app.prefs.newPerDay),
+    );
     setDone(0);
     setRevealed(false);
   };
@@ -63,6 +82,7 @@ export function StudyView() {
       setRevealed(false);
       setTyped("");
       setChecked(null);
+      setHint(false);
     },
     [card, queue, target, app],
   );
@@ -99,6 +119,14 @@ export function StudyView() {
           <span className="badge">{t("study.due", { n: stats.due })}</span>
           <span className="badge">{t("study.new", { n: Math.min(stats.fresh, app.prefs.newPerDay) })}</span>
         </p>
+        <div className="segmented">
+          <button className={source === "due" ? "on" : ""} onClick={() => setSource("due")}>
+            {t("study.srcDue")}
+          </button>
+          <button className={source === "traps" ? "on" : ""} onClick={() => setSource("traps")} disabled={!stats.traps}>
+            ⚠ {t("study.srcTraps", { n: stats.traps })}
+          </button>
+        </div>
         <div className="mode-pick">
           {(["recognize", "recall"] as Mode[]).map((m) => (
             <button key={m} className={`mode-card ${mode === m ? "on" : ""}`} onClick={() => setMode(m)}>
@@ -107,7 +135,7 @@ export function StudyView() {
             </button>
           ))}
         </div>
-        <button className="btn primary big" onClick={start} disabled={stats.due + stats.fresh === 0}>
+        <button className="btn primary big" onClick={start} disabled={source === "traps" ? !stats.traps : stats.due + stats.fresh === 0}>
           {t("study.start")}
         </button>
         {stats.due + stats.fresh === 0 && <p className="muted">{t("study.nothing")}</p>}
@@ -153,6 +181,21 @@ export function StudyView() {
       </div>
       <div className="flashcard">
         {prompt}
+        {!revealed && card.bridges.length > 0 && (
+          hint ? (
+            <ul className="bridges compact hint-list">
+              {card.bridges.map((b, i) => (
+                <li key={i}>
+                  <LangChip code={b.from} /> <BridgeBadge bridge={b} /> <span>{maskWord(b.note, term.text)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <button className="btn-link hint-btn" onClick={() => setHint(true)}>
+              💡 {t("study.hint")}
+            </button>
+          )
+        )}
         {!revealed && mode === "recall" && (
           <form
             className="row gap"
@@ -173,6 +216,9 @@ export function StudyView() {
             {mode === "recall" ? (
               <div className="flash-answer">
                 <TermText term={term} lang={target} big /> <GenderBadge gender={term.gender} />
+                <div>
+                  <PronounceButton text={term.text} lang={target} />
+                </div>
               </div>
             ) : (
               known.map((code) =>

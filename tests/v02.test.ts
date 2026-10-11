@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { buildStages, plainDoc, renderDoc, type AdaptDoc } from "../src/core/adapt";
+import { buildStages, chunkOrder, DEFAULT_ADAPT_SETTINGS, plainDoc, renderDoc, type AdaptDoc } from "../src/core/adapt";
 import { backlinks, extractLinks, parseNote, resolveLink, searchNotes, serializeNote } from "../src/core/notes";
 import { estimateMinutes, offlinePlaylist, parsePlaylist, schedule, serializePlaylist } from "../src/core/playlist";
 import { pageCount, parseBook, parseBookFile, parseFb2, parsePlain, parseTranslation, serializeBook, serializeTranslation } from "../src/core/reader";
@@ -10,20 +10,32 @@ import type { Concept } from "../src/core/types";
 
 const flat = (doc: AdaptDoc, i: number) =>
   renderDoc(doc, buildStages(doc)[i])
-    .map((p) => p.map((s) => s.map((x) => x.text).join("")).join(" "))
+    .map((p) => p.map((s) => s.segments.map((x) => x.text).join("")).join(" "))
     .join("\n");
 
 describe("scripts", () => {
-  it("maps Cyrillic to Arabic with harakat for vowels", () => {
+  it("writes Arabic vowels as long letters by default, like real transliteration", () => {
     const t = glyphTable("arabic", true)!;
+    const all = new Set(Object.keys(t));
+    expect(morphWord("москва", t, all, false)).toBe("موسكفا");
+    expect(morphWord("иван", t, all, false)).toBe("إيفان");
+  });
+
+  it("can write vowels as harakat instead", () => {
+    const t = glyphTable("arabic", true, "harakat")!;
     const all = new Set(Object.keys(t));
     expect(morphWord("мама", t, all, false)).toBe("مَمَ");
     expect(morphWord("утро", t, all, false)).toBe("أُترُ");
+    expect(morphWord("он", t, all, false)).toBe("أُن");
   });
 
-  it("puts word-initial vowels on alif", () => {
-    const t = glyphTable("arabic", true)!;
-    expect(morphWord("он", t, new Set(Object.keys(t)), false)).toBe("أُن");
+  it("does not turn е/я after a consonant into «йе»/«йа»", () => {
+    const t = glyphTable("arabic", true, "harakat")!;
+    const all = new Set(Object.keys(t));
+    // «вечером»: в-е-ч-е-р-о-м, без лишних «й».
+    expect(morphWord("вечером", t, all, false)).toBe("فِتشِرُم");
+    // В начале слова и после гласной «я» остаётся йотированной.
+    expect(morphWord("яма", t, all, false)).toBe("يَمَ");
   });
 
   it("spells Morse letter by letter", () => {
@@ -53,12 +65,26 @@ describe("adaptation", () => {
     ],
   };
 
-  it("goes original → flip → letters → words → sentences", () => {
+  it("goes original → words right-to-left → letters → words → sentences one by one", () => {
     const kinds = buildStages(doc).map((s) => s.kind);
     expect(kinds[0]).toBe("original");
     expect(kinds[1]).toBe("flip");
-    expect(kinds.filter((k) => k === "letters")).toHaveLength(5);
-    expect(kinds.slice(-6)).toEqual(["words", "words", "words", "sentences", "sentences", "sentences"]);
+    expect(kinds).not.toContain("mirror");
+    expect(kinds.filter((k) => k === "words")).toHaveLength(2); // 4 куска по 2 за шаг
+    expect(kinds.filter((k) => k === "sentences")).toHaveLength(2); // по одному
+  });
+
+  it("gets smoother with smaller steps", () => {
+    const coarse = buildStages({ ...doc, settings: { ...DEFAULT_ADAPT_SETTINGS, lettersPerStep: 6, wordsPerStep: 4 } });
+    const fine = buildStages({ ...doc, settings: { ...DEFAULT_ADAPT_SETTINGS, lettersPerStep: 1, wordsPerStep: 1 } });
+    expect(fine.length).toBeGreaterThan(coarse.length);
+    expect(fine.filter((s) => s.kind === "words")).toHaveLength(4);
+  });
+
+  it("can add a mirrored-letters stage and skip the flip", () => {
+    const kinds = buildStages({ ...doc, settings: { ...DEFAULT_ADAPT_SETTINGS, flipWords: false, mirrorLetters: true } }).map((s) => s.kind);
+    expect(kinds).toContain("mirror");
+    expect(kinds).not.toContain("flip");
   });
 
   it("keeps the text intact at the start and fully Arabic at the end", () => {
@@ -75,20 +101,28 @@ describe("adaptation", () => {
     expect(flat(doc, lettersDone)).not.toMatch(/[а-яё]/i);
   });
 
-  it("swaps single words before constructions", () => {
-    const stages = buildStages(doc);
-    const firstWords = stages.findIndex((s) => s.kind === "words");
-    const text = flat(doc, firstWords);
-    expect(text).toContain("الْمَدْرَسَةِ");
-    expect(text).not.toContain("ذَاهِبٌ إِلَى");
+  it("swaps words one by one across the whole text, single words before constructions", () => {
+    const order = chunkOrder(doc).map((c) => c.chunk.src);
+    expect(order.at(-1)).toBe("иду в");
+    const stages = buildStages({ ...doc, settings: { ...DEFAULT_ADAPT_SETTINGS, wordsPerStep: 1 } });
+    const first = stages.findIndex((s) => s.kind === "words");
+    const text = flat({ ...doc, settings: { ...DEFAULT_ADAPT_SETTINGS, wordsPerStep: 1 } }, first);
+    // Ровно одно слово на арабском — плавный шаг, а не по слову в каждом предложении.
+    expect([text.includes("الْمَدْرَسَةِ"), text.includes("الْمَتْجَرِ"), text.includes("خُبْزٌ")].filter(Boolean)).toHaveLength(1);
   });
 
-  it("simple sentences switch to the target before complex ones", () => {
+  it("switches simple sentences to the target first", () => {
     const stages = buildStages(doc);
     const s1 = stages.findIndex((s) => s.kind === "sentences");
     const text = flat(doc, s1).split("\n");
     expect(text[0]).toBe(doc.sentences[0].tgt);
     expect(text[1]).not.toBe(doc.sentences[1].tgt);
+  });
+
+  it("marks source words so the UI can lay them out right to left", () => {
+    const stages = buildStages(doc);
+    const segs = renderDoc(doc, stages[1])[0][0].segments;
+    expect(segs.filter((s) => s.word).map((s) => s.text)).toEqual(["Я", "иду", "в", "школу"]);
   });
 
   it("codes have only letter stages", () => {

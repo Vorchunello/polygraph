@@ -6,7 +6,7 @@ import { langName } from "../core/languages";
 import { estimateMinutes, offlinePlaylist, schedule, type Playlist } from "../core/playlist";
 import { useT } from "../i18n";
 import { canSpeak, hasVoice, speakAsync, stopSpeaking } from "../storage/tts";
-import { LangChip, Modal, useAsync } from "./common";
+import { LangChip, LangFilter, Modal, useAsync } from "./common";
 import { useApp } from "./state";
 
 interface PlayerSettings {
@@ -25,6 +25,7 @@ export function PlaylistsView() {
   const [lists, setLists] = useState<Playlist[] | null>(null);
   const [open, setOpen] = useState<Playlist | null>(null);
   const [creating, setCreating] = useState(false);
+  const [allLangs, setAllLangs] = useState(false);
 
   const load = () => app.repo.loadPlaylists().then((l) => setLists(l.sort((a, b) => b.created.localeCompare(a.created))));
   useEffect(() => {
@@ -43,9 +44,12 @@ export function PlaylistsView() {
       </header>
       <p className="muted">{t("pl.hint")}</p>
       {!canSpeak() && <p className="error">{t("pl.noTts")}</p>}
+      <LangFilter all={allLangs} onChange={setAllLangs} lang={app.target} />
       {lists && lists.length === 0 && <div className="empty">{t("pl.empty")}</div>}
       <ul className="list">
-        {lists?.map((p) => (
+        {lists
+          ?.filter((p) => allLangs || p.lang === app.target)
+          .map((p) => (
           <li key={p.id}>
             <button className="list-item" onClick={() => setOpen(p)}>
               <LangChip code={p.lang} />
@@ -219,6 +223,14 @@ function Player({ list, onClose }: { list: Playlist; onClose(): void }) {
     setPhase("idle");
   };
 
+  // Таймер сна: через N минут воспроизведение само останавливается.
+  const [sleep, setSleep] = useState(0);
+  useEffect(() => {
+    if (!playing || !sleep) return;
+    const id = setTimeout(pause, sleep * 60_000);
+    return () => clearTimeout(id);
+  }, [playing, sleep]);
+
   const jump = (n: number) => {
     const target = Math.max(0, Math.min(items.length - 1, n));
     pause();
@@ -306,6 +318,17 @@ function Player({ list, onClose }: { list: Playlist; onClose(): void }) {
         </label>
         <label className="row gap small">
           <input type="checkbox" checked={s.loop} onChange={(e) => update({ loop: e.target.checked })} /> {t("pl.loop")}
+        </label>
+        <label className="field">
+          <span>{t("pl.sleep")}</span>
+          <select className="input" value={sleep} onChange={(e) => setSleep(Number(e.target.value))}>
+            <option value={0}>{t("pl.sleepOff")}</option>
+            {[15, 30, 45, 60].map((m) => (
+              <option key={m} value={m}>
+                {t("pl.minutes", { n: m })}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
       <p className="muted small">{t("pl.backgroundNote")}</p>

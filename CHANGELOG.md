@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-10-11
+
+Adaptation rebuilt, AI that works on free services, pronunciation, Wiktionary, MCP.
+
+- **Adaptation, rebuilt.** Right-to-left now means word order, not mirrored Russian letters; mirroring letters is an optional separate stage. Arabic transliteration follows real practice (*Москва* → موسكفا, *в* → ف), with vowels as letters or, if you prefer, as harakat; *я/е/ю* after a consonant no longer turn into *йа/йе/йу*. Every transition is adjustable per text: letters per step, words per step (words now change one by one across the whole text, not a batch in every sentence), whole sentences one at a time or by difficulty, and each stage can be switched off. Stages that change nothing are skipped. Tap a sentence to see the original and the translation. *Challenge mode*: the next stage unlocks only when you read the current one without peeking, with your best time per stage. The text language is detected from its alphabet.
+- **Switching the learning language works everywhere.** Open screens restart with the new language; the reader, adaptation and playlists show only material in the active language, with an “all languages” switch.
+- **Free AI fixed.** Pollinations rejected every request that set an answer length, so the free default never really worked; now it does for short tasks, and when a free service runs out of length the app says so and suggests a free Groq or Gemini key or LM Studio. Truncated JSON answers are repaired, invalid ones retried once.
+- **Wiktionary.** New words are drafted from the Wiktionary entry when there is one, so etymology is retold rather than invented; any word can be checked against Wiktionary and its etymology marked verified.
+- **Pronunciation.** “Say it” in Study and on every word: speech recognition runs on the device (Whisper), and you get what it heard plus a similarity score.
+- **MCP server** (`npm run mcp`): Claude Code and other agents can read your profile, due words, traps, inbox and notes and add words — see `docs/MCP.md`.
+- **Home:** study streak and a 25/5 focus timer. **Study:** traps-only mode and a bridge hint that does not give the answer away. **Notes:** note of the day and templates (word, rule, mistake). **Playlists:** sleep timer.
+- Smaller installers: libraries used only by the interface are no longer copied into the desktop app.
+
 ## 0.3.0 — 2026-10-10
 
 Games, a much better reader, text from photos and screens, translation without AI, and three more interface languages.
