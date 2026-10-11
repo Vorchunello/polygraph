@@ -3,6 +3,7 @@ import { aiReady } from "../ai/config";
 import { draftConcept } from "../ai/tasks";
 import { useT } from "../i18n";
 import { pickImage, useAsync } from "./common";
+import { ExtractWords } from "./ExtractWords";
 import { OcrDialog } from "./OcrDialog";
 import { useApp } from "./state";
 import { AddWord, conceptFromDraft } from "./WordDetail";
@@ -16,6 +17,7 @@ export function InboxView() {
   const job = useAsync();
 
   const [image, setImage] = useState<Blob | string | null>(null);
+  const [extracting, setExtracting] = useState(false);
 
   // Вставка списка: каждая строка — отдельный пункт.
   const add = (raw = text) => {
@@ -116,6 +118,9 @@ export function InboxView() {
         >
           📷 {t("inbox.fromPhoto")}
         </button>
+        <button className="btn small" onClick={() => setExtracting(true)}>
+          ✦ {t("inbox.fromText")}
+        </button>
         {window.polygraph && (
           <button
             className="btn small"
@@ -159,6 +164,7 @@ export function InboxView() {
 
       {making && <AddWord initialText={splitTags(making).word} onClose={() => setMaking(null)} onSaved={() => remove(making)} />}
       {image && <OcrDialog image={image} onClose={() => setImage(null)} />}
+      {extracting && <ExtractWords lang={app.target} onClose={() => setExtracting(false)} />}
     </section>
   );
 }

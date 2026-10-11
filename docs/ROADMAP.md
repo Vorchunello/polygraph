@@ -7,16 +7,18 @@ Releases every 2–3 weeks. Each version has to be usable on its own; nothing sh
 - **v0.1** — multilingual dictionary with bridges, AI drafts, routes, spaced repetition, inbox, Ask, stories, Markdown vault, Windows / Linux / Android.
 - **v0.2** — home screen and goal, free AI by default, adaptation mode (scripts, Morse, Braille), reader with parallel translation, Toucan mode, playlists, background (ADHD) mode on Android and PC, notes with wikilinks, share-to-inbox on Android.
 - **v0.3** — games (Sennaar, Bridge or trap?, drill builder), reader views and ADHD focus aids, speed reading, read aloud, PDF / subtitles / web articles / photos in the reader, on-device OCR and desktop hotkeys, translator without AI, interface in Spanish, Turkish and Arabic, Ctrl+K command palette.
+- **v0.5** — offline dictionaries (30 languages, from Wiktionary), ★ Learn in the reader with the sentence as the example, words worth learning from any text, PDF, subtitles or YouTube transcript (AI or offline), examples from your own books.
 - **v0.4** — adaptation rebuilt (adjustable steps, real transliteration, challenge mode), language switching everywhere, free AI fixed and honest about its limits, Wiktionary-grounded words, on-device pronunciation check, MCP server, streak and focus timer, traps-only study, note templates, sleep timer.
 
-## v0.5 — your own material and offline dictionaries
+## v0.6 — bridges you can trust, and more of your own material
 
-- **Offline Wiktionary** (kaikki.org dumps per language): cognates and bridges checked against a dictionary without internet; bridges with a source are marked verified automatically.
-- **Examples from what you read**: the AI picks example sentences for a word from your own books and notes.
+- **Bridges checked offline**: cognates and loanwords confirmed by the etymology in the offline dictionary are marked verified automatically, with the source.
+- **Translations in your language offline**: dictionaries built from the Russian, Spanish and Turkish Wiktionaries, not only the English one.
 - **External-model prompts**: Polygraph assembles a self-contained prompt for any model and accepts the result back for checking (the Forge `/prompt` loop).
+- **Word frequency lists**, so "worth learning" also means "frequent in the language", not only in the text.
 - More interface languages (Chinese, Hindi, French, Portuguese, German).
 
-## v0.6 — space, video and integrations
+## v0.7 — space, video and integrations
 
 - **Memory palace** (desktop): place words along a route through your own flat or street — a 2D plan first, a 3D walk later.
 - **Clips**: short videos and scenes from films you own; learn the words of a scene and repeat its lines after the actors (shadowing).

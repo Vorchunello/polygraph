@@ -9,16 +9,17 @@ import { parseRoutes } from "../core/routes";
 import { LOCALES, useT } from "../i18n";
 import { platform } from "../storage/platform";
 import { exportFile, LanguagePicker, pickTextFile, useAsync } from "./common";
+import { OfflineSettings } from "./OfflineSettings";
 import { useApp } from "./state";
 
-type Tab = "profile" | "view" | "routes" | "ai" | "translator" | "data" | "about";
+type Tab = "profile" | "view" | "routes" | "ai" | "translator" | "offline" | "data" | "about";
 
 declare const __APP_VERSION__: string;
 
 export function SettingsView() {
   const { t } = useT();
   const [tab, setTab] = useState<Tab>("profile");
-  const tabs: Tab[] = ["profile", "view", "routes", "ai", "translator", "data", "about"];
+  const tabs: Tab[] = ["profile", "view", "routes", "ai", "translator", "offline", "data", "about"];
   return (
     <section className="view narrow">
       <h1>{t("nav.settings")}</h1>
@@ -34,6 +35,7 @@ export function SettingsView() {
       {tab === "view" && <ViewSettings />}
       {tab === "ai" && <AiSettings />}
       {tab === "translator" && <TranslatorSettings />}
+      {tab === "offline" && <OfflineSettings />}
       {tab === "data" && <DataSettings />}
       {tab === "about" && <About />}
     </section>

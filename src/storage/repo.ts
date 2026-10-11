@@ -179,6 +179,24 @@ export class Repo {
     return this.loadDir("playlists", parsePlaylist);
   }
 
+  /** Слова, отмеченные «знаю»: при отборе слов из текста их не предлагаем. Одно слово — одна строка. */
+  async loadKnownWords(lang: LangCode): Promise<string[]> {
+    const src = (await this.vault.read(`known/${lang}.md`)) ?? "";
+    return src
+      .split(/\r?\n/)
+      .map((s) => s.replace(/^[-*]\s*/, "").trim())
+      .filter((s) => s && !s.startsWith("#"));
+  }
+
+  async addKnownWords(lang: LangCode, words: string[]): Promise<void> {
+    const current = await this.loadKnownWords(lang);
+    const have = new Set(current.map((w) => w.toLowerCase()));
+    const add = words.map((w) => w.trim()).filter((w) => w && !have.has(w.toLowerCase()));
+    if (!add.length) return;
+    const all = [...current, ...add];
+    await this.vault.write(`known/${lang}.md`, `# Known words (${lang})\n\n${all.join("\n")}\n`);
+  }
+
   async savePlaylist(p: Playlist): Promise<void> {
     await this.vault.write(`playlists/${p.id}.md`, serializePlaylist(p));
   }

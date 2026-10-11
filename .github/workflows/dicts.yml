@@ -1,0 +1,93 @@
+name: Offline dictionaries
+
+# Собирает офлайн-словари из выгрузок английского Викисловаря (kaikki.org)
+# и выкладывает их в релиз «dicts». Запускается вручную: словари обновляются
+# редко и не зависят от версии приложения.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { code: en, name: English, max: 150000 }
+          - { code: zh, name: Chinese }
+          - { code: hi, name: Hindi }
+          - { code: es, name: Spanish }
+          - { code: fr, name: French }
+          - { code: ar, name: Arabic }
+          - { code: bn, name: Bengali }
+          - { code: pt, name: Portuguese }
+          - { code: ru, name: Russian }
+          - { code: ja, name: Japanese }
+          - { code: de, name: German }
+          - { code: tr, name: Turkish }
+          - { code: ko, name: Korean }
+          - { code: it, name: Italian }
+          - { code: id, name: Indonesian }
+          - { code: uk, name: Ukrainian }
+          - { code: pl, name: Polish }
+          - { code: fa, name: Persian }
+          - { code: ur, name: Urdu }
+          - { code: vi, name: Vietnamese }
+          - { code: nl, name: Dutch }
+          - { code: sv, name: Swedish }
+          - { code: el, name: Greek }
+          - { code: he, name: Hebrew }
+          - { code: kk, name: Kazakh }
+          - { code: az, name: Azerbaijani }
+          - { code: uz, name: Uzbek }
+          - { code: th, name: Thai }
+          - { code: sw, name: Swahili }
+          - { code: la, name: Latin }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Build dict-${{ matrix.code }}
+        env:
+          # Английская выгрузка — больше миллиона статей, нужна память.
+          NODE_OPTIONS: --max-old-space-size=12000
+          MAX_ENTRIES: ${{ matrix.max || 150000 }}
+        run: node scripts/build-dict.mjs ${{ matrix.code }} "https://kaikki.org/dictionary/${{ matrix.name }}/kaikki.org-dictionary-${{ matrix.name }}.jsonl.gz" dicts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dict-${{ matrix.code }}
+          path: dicts/*.jsonl.gz
+
+  publish:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dicts
+          merge-multiple: true
+      - name: Catalog
+        run: |
+          node -e '
+            const fs = require("fs"), zlib = require("zlib");
+            const index = {};
+            for (const f of fs.readdirSync("dicts").filter((f) => f.endsWith(".jsonl.gz"))) {
+              const buf = fs.readFileSync("dicts/" + f);
+              const head = JSON.parse(zlib.gunzipSync(buf).toString("utf8", 0, 2000).split("\n")[0]);
+              index[head.lang] = { lang: head.lang, size: buf.length, entries: head.entries, built: head.built };
+            }
+            fs.writeFileSync("dicts/index.json", JSON.stringify(index, null, 1));
+            console.log(Object.keys(index).length, "dictionaries");
+          '
+      - name: Publish to the «dicts» release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view dicts >/dev/null 2>&1 || gh release create dicts --title "Offline dictionaries" --notes "Compact dictionaries for Polygraph, built from English Wiktionary via kaikki.org. Data: CC BY-SA 4.0 (Wiktionary contributors)." --latest=false
+          gh release upload dicts dicts/* --clobber

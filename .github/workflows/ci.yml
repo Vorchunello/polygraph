@@ -17,3 +17,5 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      # Скрипты вне TypeScript: Electron, MCP, сборщик словарей — хотя бы синтаксис.
+      - run: for f in electron/main.cjs electron/preload.cjs mcp/server.mjs scripts/build-dict.mjs; do node --check "$f"; done

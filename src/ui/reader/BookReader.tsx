@@ -6,10 +6,14 @@ import { isRtl, langName } from "../../core/languages";
 import { anchorSplit, minutesLeft, rhythmSentences, type FocusMode } from "../../core/readingModes";
 import { pageCount, pageRange, type Book, type Translation } from "../../core/reader";
 import { toucanize } from "../../core/toucan";
+import { sentenceWith } from "../../core/vocab";
 import type { Concept } from "../../core/types";
 import { useT } from "../../i18n";
+import { dictKey, hasDict, hitEtymology, hitGender, hitIpa, lookupOffline, type DictHit } from "../../storage/dictionary";
 import { speakAsync, stopSpeaking } from "../../storage/tts";
-import { LangChip, Modal, TermText, useAsync } from "../common";
+import { GenderBadge, LangChip, Modal, SpeakButton, TermText, useAsync } from "../common";
+import { ExtractWords } from "../ExtractWords";
+import { learnCard } from "../saveWord";
 import { useApp } from "../state";
 import { Rsvp } from "./Rsvp";
 
@@ -37,6 +41,17 @@ function loadPrefs(): ReaderPrefs {
 
 const WORD = /(\p{L}[\p{L}\p{M}'’-]*)/u;
 
+interface Popup {
+  word: string;
+  concept?: Concept;
+  original?: string;
+  translation?: string;
+  /** Предложение, где стоит слово, — пример для карточки. */
+  sentence?: string;
+  /** Офлайн-словарь: undefined — ещё ищем, null — нет словаря или слова. */
+  hit?: DictHit | null;
+}
+
 export function BookReader({ book: initial, onClose }: { book: Book; onClose(): void }) {
   const { t, lang } = useT();
   const app = useApp();
@@ -55,7 +70,11 @@ export function BookReader({ book: initial, onClose }: { book: Book; onClose(): 
   const [rsvp, setRsvp] = useState(false);
   const [speaking, setSpeaking] = useState<number | null>(null);
   const [active, setActive] = useState<number | null>(null);
-  const [popup, setPopup] = useState<{ word: string; concept?: Concept; original?: string; translation?: string } | null>(null);
+  const [popup, setPopup] = useState<Popup | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [dictReady, setDictReady] = useState(false);
+  // Словоформы страницы → начальные формы (по офлайн-словарю): «comió» подсвечивается, если сохранено «comer».
+  const [lemmaOf, setLemmaOf] = useState<Map<string, string>>(new Map());
   const reading = useRef(0);
   const job = useAsync();
 
@@ -115,14 +134,14 @@ export function BookReader({ book: initial, onClose }: { book: Book; onClose(): 
   // ←/→ листают страницы, пока не открыт диалог и фокус не в поле ввода.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (rsvp || popup || (e.target as HTMLElement)?.closest("input,textarea,select")) return;
+      if (rsvp || popup || extracting || (e.target as HTMLElement)?.closest("input,textarea,select")) return;
       if (e.key === "ArrowRight") goPage(book.page + 1);
       else if (e.key === "ArrowLeft") goPage(book.page - 1);
       else if (e.key === "Escape" && clean) setClean(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goPage, book.page, rsvp, popup, clean]);
+  }, [goPage, book.page, rsvp, popup, extracting, clean]);
 
   // Чтение вслух: абзац за абзацем с подсветкой, в конце страницы —
   // перелистывание, и эффект ниже продолжает чтение на новой странице.
@@ -150,31 +169,98 @@ export function BookReader({ book: initial, onClose }: { book: Book; onClose(): 
     if (continuing.current) readAloud();
   }, [book.page]);
 
+  // Сохранённые слова по ключу словаря: для подсветки и поиска карточки.
+  const saved = useMemo(() => {
+    const m = new Map<string, Concept>();
+    for (const c of app.concepts) {
+      const text = c.terms[book.lang]?.text;
+      if (text) m.set(dictKey(text), c);
+    }
+    return m;
+  }, [app.concepts, book.lang]);
+  const bookTag = `book-${book.id}`;
+  const savedHere = useMemo(() => app.concepts.filter((c) => c.tags.includes(bookTag)).length, [app.concepts, bookTag]);
+
+  useEffect(() => {
+    hasDict(book.lang).then(setDictReady, () => setDictReady(false));
+  }, [book.lang]);
+
+  // Начальные формы для слов страницы — один раз на страницу, из локального словаря.
+  useEffect(() => {
+    if (!dictReady) return;
+    let alive = true;
+    (async () => {
+      const keys = [...new Set(paras.flatMap((p) => p.split(WORD).filter((_x, i) => i % 2 === 1).map(dictKey)))].sort();
+      const m = new Map<string, string>();
+      for (const k of keys) {
+        if (saved.has(k)) continue;
+        const hit = await lookupOffline(k, book.lang).catch(() => null);
+        if (hit && dictKey(hit.lemma) !== k) m.set(k, dictKey(hit.lemma));
+      }
+      if (alive) setLemmaOf(m);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [dictReady, book.page, book.lang]);
+
   const dictFor = (word: string) => {
-    const w = word.toLowerCase();
-    return app.concepts.find((c) => c.terms[book.lang]?.text.toLowerCase() === w);
+    const k = dictKey(word);
+    return saved.get(k) ?? saved.get(lemmaOf.get(k) ?? "");
   };
 
-  const word = (part: string, key: number | string): ReactNode => {
+  const openWord = (part: string, context: string) => {
+    const p: Popup = { word: part, concept: dictFor(part), sentence: sentenceWith(context, part), hit: dictReady ? undefined : null };
+    setPopup(p);
+    if (dictReady)
+      lookupOffline(part, book.lang)
+        .catch(() => null)
+        .then((hit) => setPopup((cur) => (cur && cur.word === part ? { ...cur, hit, concept: cur.concept ?? (hit ? saved.get(dictKey(hit.lemma)) : undefined) } : cur)));
+  };
+
+  const word = (part: string, key: number | string, context: string): ReactNode => {
     if (!WORD.test(part)) return part;
-    const onClick = () => setPopup({ word: part, concept: dictFor(part) });
+    const onClick = () => openWord(part, context);
+    const cls = dictFor(part) ? "w saved" : "w";
     if (prefs.focus === "anchors") {
       const [a, b] = anchorSplit(part);
       return (
-        <span key={key} className="w" onClick={onClick}>
+        <span key={key} className={cls} onClick={onClick}>
           <b>{a}</b>
           {b}
         </span>
       );
     }
     return (
-      <span key={key} className="w" onClick={onClick}>
+      <span key={key} className={cls} onClick={onClick}>
         {part}
       </span>
     );
   };
 
-  const words = (text: string) => text.split(WORD).map((p, i) => word(p, i));
+  const words = (text: string) => text.split(WORD).map((p, i) => word(p, i, text));
+
+  // «★ Учить»: карточка из слова книги — начальная форма, перевод, пример, словарь.
+  const learn = (p: Popup) =>
+    job.run(async () => {
+      const hit = p.hit ?? (dictReady ? await lookupOffline(p.word, book.lang).catch(() => null) : null);
+      const lemma = hit?.lemma ?? (book.lang === "de" ? p.word : p.word.toLowerCase());
+      let translation = p.translation;
+      if (!translation) translation = await translateText(app.translator, lemma, book.lang, trLang).catch(() => "");
+      const c = learnCard({
+        id: app.newId(lemma),
+        lang: book.lang,
+        lemma,
+        hit,
+        translation: translation ? { lang: trLang, text: translation } : undefined,
+        example: p.sentence,
+        tags: ["reader", bookTag],
+        known: app.profile.known.map((k) => k.code),
+      });
+      await app.saveConcept(c);
+      setPopup(null);
+      app.toast(t("reader.learned", { word: lemma }), "ok", { label: t("common.undo"), run: () => app.deleteConcept(c.id) });
+    });
 
   const renderPara = (text: string, idx: number): ReactNode => {
     if (mode === "toucan")
@@ -298,6 +384,14 @@ export function BookReader({ book: initial, onClose }: { book: Book; onClose(): 
         <button className="btn" onClick={() => setClean(true)}>
           ⛶ {t("reader.clean")}
         </button>
+        <button className="btn" onClick={() => setExtracting(true)} title={t("extract.title")}>
+          ✦ {t("reader.findWords")}
+        </button>
+        {savedHere > 0 && (
+          <span className="badge ok" title={t("reader.savedHint")}>
+            ★ {savedHere}
+          </span>
+        )}
         {mode === "parallel" && (
           <>
             <button className="btn" onClick={translatePage} disabled={job.busy || !missing.length}>
@@ -399,18 +493,43 @@ export function BookReader({ book: initial, onClose }: { book: Book; onClose(): 
             )}
             {popup.concept ? (
               <div className="terms-list">
+                <span className="badge ok">★ {t("reader.inMyWords")}</span>
                 {Object.entries(popup.concept.terms).map(([code, term]) => (
                   <div key={code} className="row gap">
                     <LangChip code={code} /> <TermText term={term} lang={code} />
                   </div>
                 ))}
               </div>
-            ) : popup.translation ? (
-              <p>
-                <LangChip code={trLang} /> {popup.translation} <span className="muted small">· {t("reader.machine")}</span>
-              </p>
             ) : (
-              <p className="muted">{t("reader.notInDict")}</p>
+              <>
+                {popup.translation && (
+                  <p>
+                    <LangChip code={trLang} /> {popup.translation} <span className="muted small">· {t("reader.machine")}</span>
+                  </p>
+                )}
+                {popup.hit === undefined && <p className="muted small">{t("common.loading")}</p>}
+                {popup.hit === null && !popup.translation && <p className="muted">{t(dictReady ? "reader.notInOffline" : "reader.notInDict")}</p>}
+              </>
+            )}
+            {popup.hit && (
+              <div className="dict-card">
+                <div className="row gap wrap">
+                  <strong lang={book.lang}>{popup.hit.lemma}</strong>
+                  <GenderBadge gender={hitGender(popup.hit)} />
+                  {hitIpa(popup.hit) && <span className="muted small">/{hitIpa(popup.hit)!.replace(/^\/|\/$/g, "")}/</span>}
+                  <SpeakButton text={popup.hit.lemma} lang={book.lang} />
+                  {popup.hit.form && <span className="muted small">← {popup.hit.form}</span>}
+                </div>
+                <ol className="small">
+                  {popup.hit.senses.map((s, i) => (
+                    <li key={i}>
+                      <em className="muted">{s.p}</em> {s.d.join("; ")}
+                    </li>
+                  ))}
+                </ol>
+                {hitEtymology(popup.hit) && <p className="muted small">{hitEtymology(popup.hit)}</p>}
+                <span className="muted small">Wiktionary · CC BY-SA</span>
+              </div>
             )}
             <div className="row gap end wrap">
               {!popup.concept && !popup.translation && (
@@ -428,7 +547,7 @@ export function BookReader({ book: initial, onClose }: { book: Book; onClose(): 
                 </button>
               )}
               <button
-                className="btn primary"
+                className="btn"
                 onClick={async () => {
                   await app.addToInbox([`${popup.original ?? popup.word} #${book.lang}`]);
                   app.toast(t("home.captured"));
@@ -437,9 +556,27 @@ export function BookReader({ book: initial, onClose }: { book: Book; onClose(): 
               >
                 → {t("nav.inbox")}
               </button>
+              {!popup.concept && !popup.original && (
+                <button className="btn primary" disabled={job.busy} onClick={() => learn(popup)}>
+                  {job.busy ? t("common.loading") : `★ ${t("reader.learn")}`}
+                </button>
+              )}
             </div>
+            {job.error && <p className="error small">{job.error}</p>}
           </div>
         </Modal>
+      )}
+
+      {extracting && (
+        <ExtractWords
+          lang={book.lang}
+          tag={bookTag}
+          sources={[
+            { label: t("extract.thisPage"), paragraphs: paras },
+            { label: t("extract.wholeBook"), paragraphs: book.paragraphs },
+          ]}
+          onClose={() => setExtracting(false)}
+        />
       )}
     </section>
   );

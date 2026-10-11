@@ -85,6 +85,10 @@ Markers (inherited from Forge): `[+]` always, `[-]` never, `[!]` the AI decides,
 
 Every `- item` line is one entry. `#tag` labels become tags of the concept when the inbox is processed.
 
+## `known/<lang>.md`
+
+Words you marked *I know it* when picking words from a text — one per line. They are never suggested again. Edit freely.
+
 ## `texts/`
 
 Stories and answers you saved, with `title`, `created`, `kind`, `style` and `lang` in the frontmatter.

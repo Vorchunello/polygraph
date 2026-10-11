@@ -434,3 +434,61 @@ export async function makeTrapPairs(cfg: AiConfig, profile: Profile, target: Lan
       explain: String(p.explain ?? ""),
     }));
 }
+
+// ——— v0.5 ———
+
+export interface ExtractedWord {
+  lemma: string;
+  form: string;
+  translation: string;
+  level: string;
+  example: string;
+  why: string;
+}
+
+/**
+ * Слова, которые стоит выучить из текста (книга, PDF, субтитры ролика):
+ * с учётом уровня и цели ученика, без того, что он уже знает.
+ * candidates — подсказка от офлайн-словаря: частые полнозначные слова текста.
+ */
+export async function extractVocabulary(
+  cfg: AiConfig,
+  profile: Profile,
+  lang: LangCode,
+  text: string,
+  opts: { count: number; known: string[]; candidates: string[]; translateTo: LangCode },
+): Promise<ExtractedWord[]> {
+  const name = langName(lang, "en");
+  const system = [
+    `You pick vocabulary worth learning from a ${name} text for a language learner.`,
+    learnerContext(profile, lang),
+    "Choose words and short fixed expressions that are useful for this learner: frequent in real life or important for the learner's goal, a little above the learner's level. Skip names, numbers, the most basic words of the level, and anything in the 'already known' list.",
+    "For each item: lemma — the dictionary form in the original script (infinitive, singular; keep the article off); form — exactly as it appears in the text; example — the sentence from the text where it appears, copied exactly; level — CEFR A1…C2; why — a few words on why it is worth learning.",
+    `translation — a short translation into ${langName(opts.translateTo, "en")}; why — in ${uiLanguage(profile)}.`,
+    `Reply with JSON only: {"words": [{"lemma": "...", "form": "...", "translation": "...", "level": "B1", "example": "...", "why": "..."}]} — up to ${opts.count} items, the most useful first.`,
+  ].join("\n");
+  const prompt = [
+    opts.known.length ? `Already known (skip): ${opts.known.slice(0, 300).join(", ")}` : "",
+    opts.candidates.length ? `Frequent content words found in the text (lemma ×count) — a hint, not a limit: ${opts.candidates.join(", ")}` : "",
+    `Text:\n${text}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const r = await completeJson<{ words?: Partial<ExtractedWord>[] }>(cfg, { system, prompt, maxTokens: 6000 });
+  const seen = new Set(opts.known.map((k) => k.toLowerCase()));
+  const out: ExtractedWord[] = [];
+  for (const w of r.words ?? []) {
+    const lemma = typeof w?.lemma === "string" ? w.lemma.trim() : "";
+    if (!lemma || seen.has(lemma.toLowerCase())) continue;
+    seen.add(lemma.toLowerCase());
+    out.push({
+      lemma,
+      form: String(w.form ?? lemma).trim(),
+      translation: String(w.translation ?? "").trim(),
+      level: String(w.level ?? "").trim().toUpperCase().slice(0, 2),
+      example: String(w.example ?? "").trim(),
+      why: String(w.why ?? "").trim(),
+    });
+  }
+  return out.slice(0, opts.count);
+}

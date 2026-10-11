@@ -86,6 +86,14 @@ ipcMain.handle("vault:remove", async (_e, rel) => {
   await fs.rm(await resolveInVault(rel), { force: true });
 });
 
+// Скачивание файлов (офлайн-словари): бинарно и с переходами по редиректам GitHub.
+ipcMain.handle("http:download", async (_e, url) => {
+  if (!url.startsWith("https://")) throw new Error("Only https URLs are allowed");
+  const res = await fetch(url, { redirect: "follow" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+});
+
 ipcMain.handle("http:request", async (_e, req) => {
   if (!/^https?:\/\//.test(req.url)) throw new Error("Only http(s) URLs are allowed");
   const res = await fetch(req.url, { method: req.method, headers: req.headers, body: req.body });
@@ -245,7 +253,7 @@ function smokeTest(win) {
             g.fillStyle = "#fff"; g.fillRect(0, 0, 600, 140); g.fillStyle = "#000"; g.font = "48px Arial"; g.fillText("Hola mundo", 20, 90);
             ocr = await window.__smoke.ocr(await new Promise((r) => c.toBlob(r)));
           } catch (e) { ocr = "ERR " + e; }
-          resolve({ root: await v.root(), read: await v.read("smoke/check.md"), list: await v.list("smoke"), http, pdf, ocr, text: document.body.innerText.slice(0, 60) });
+          resolve({ root: await v.root(), read: await v.read("smoke/check.md"), list: await v.list("smoke"), http, pdf, ocr, download: typeof window.polygraph.download, text: document.body.innerText.slice(0, 60) });
         } catch (e) {
           resolve({ error: String(e) });
         }
@@ -253,7 +261,7 @@ function smokeTest(win) {
       r.windows = BrowserWindow.getAllWindows().length;
       r.ticker = !!tickerWin && !tickerWin.isDestroyed() && tickerWin.webContents.getURL().endsWith("#ticker");
       if (r.ticker) r.tickerText = await tickerWin.webContents.executeJavaScript("document.body.innerText.slice(0, 80)");
-      const ok = r.read === "ok" && !!r.text && r.ticker && /Hola/.test(r.pdf ?? "") && /Hola/.test(r.ocr ?? "");
+      const ok = r.read === "ok" && !!r.text && r.ticker && r.download === "function" && /Hola/.test(r.pdf ?? "") && /Hola/.test(r.ocr ?? "");
       console.log(ok ? "SMOKE OK" : "SMOKE FAIL", JSON.stringify(r));
       if (!ok) process.exitCode = 1;
     } catch (e) {

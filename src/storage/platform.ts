@@ -25,6 +25,8 @@ export interface ElectronBridge {
     reveal(): Promise<void>;
   };
   http(req: HttpRequest): Promise<HttpResponse>;
+  /** Скачать файл целиком (бинарно, с редиректами). */
+  download(url: string): Promise<Uint8Array>;
   ticker: { open(): Promise<void>; close(): Promise<void> };
   /** Снимок экрана (своё окно на время прячется). data URL PNG или null. */
   captureScreen(): Promise<string | null>;

@@ -29,7 +29,8 @@ Polygraph keeps every word as a **concept with bridges**: the word in each of yo
 
 **Read and listen**
 
-- **Reader** — your own books and texts: .txt, .md, .fb2, .fb2.zip, .epub, PDF, subtitles (.srt/.vtt), a web article by link (cleaned to text) or a photo of a page. Parallel translation by the AI or a machine translator, page by page. Page themes and fonts, ADHD focus aids (*anchor letters* — bold word beginnings, *rhythm*, *ruler*), clean distraction-free reading, speed reading word by word, reading aloud. Tap a word to look it up or send it to the inbox.
+- **Reader** — your own books and texts: .txt, .md, .fb2, .fb2.zip, .epub, PDF, subtitles (.srt/.vtt), a web article by link (cleaned to text) or a photo of a page. Parallel translation by the AI or a machine translator, page by page. Page themes and fonts, ADHD focus aids (*anchor letters* — bold word beginnings, *rhythm*, *ruler*), clean distraction-free reading, speed reading word by word, reading aloud. Tap a word to see it in the dictionary and ★ *Learn* it — the card gets the dictionary form, translation and the sentence from the book as the example; saved words are underlined in every book.
+- **Words worth learning from any text** — a book page or a whole book, a PDF, subtitles or a YouTube transcript: the AI (by your level and goal) or the offline dictionary picks the words to learn and skips what you already know.
 - **Toucan mode** — read a text in a language you know with your dictionary words swapped into the target language.
 - **Background (ADHD) mode** — a word strip on top of TikTok or a game on Android, a small always-on-top window for the second monitor on the PC. Every few words it asks *know / don't know*; missed words come back in Study today.
 - **Stories from your words** — IELTS Reading passage, dialogue, fairy tale, news, diary, Ilya Frank bilingual reading, or *diglot weave* (a text in your language where target-language words take over paragraph by paragraph).
@@ -41,7 +42,7 @@ Polygraph keeps every word as a **concept with bridges**: the word in each of yo
 - **Notes** — Markdown notes with `[[wikilinks]]` and backlinks, Obsidian-style. Ask the AI about your notes, or let it write a set of linked notes on a topic.
 - **Ask** — grammar and usage questions answered through your routes.
 - **Pronunciation** — “Say it” on every word: speech is recognised on the device (Whisper), you see what was heard and a similarity score.
-- **Wiktionary** — new words are drafted from the dictionary entry, and any etymology can be checked and marked verified.
+- **Wiktionary, online and offline** — download a dictionary per language (30 languages, 4–10 MB each) for meanings, dictionary forms, gender, pronunciation and etymology without the internet; new words are drafted from the dictionary entry, and any etymology can be checked and marked verified.
 - **For AI agents** — an MCP server lets Claude Code and other agents read your words, traps, inbox and notes ([docs/MCP.md](docs/MCP.md)).
 
 **Everywhere**

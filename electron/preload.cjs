@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("polygraph", {
     remove: (p) => ipcRenderer.invoke("vault:remove", p),
   },
   http: (req) => ipcRenderer.invoke("http:request", req),
+  download: (url) => ipcRenderer.invoke("http:download", url),
   ticker: {
     open: () => ipcRenderer.invoke("ticker:open"),
     close: () => ipcRenderer.invoke("ticker:close"),

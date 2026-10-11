@@ -2,7 +2,9 @@ import { useState } from "react";
 import { aiReady } from "../ai/config";
 import { draftConcept, explain, type ConceptDraft } from "../ai/tasks";
 import { translateText } from "../ai/translate";
-import { lookupWiktionary, wiktionaryContext, type WiktionaryEntry } from "../storage/wiktionary";
+import { hasDict, lookupOffline } from "../storage/dictionary";
+import { lookupDictionary, wiktionaryContext, type WiktionaryEntry } from "../storage/wiktionary";
+import { learnCard } from "./saveWord";
 import { today } from "../core/dates";
 import { langInfo, langName } from "../core/languages";
 import type { Bridge, BridgeKind, Concept, Example, Term } from "../core/types";
@@ -10,6 +12,7 @@ import { useT } from "../i18n";
 import { BridgeBadge, GenderBadge, LangChip, Modal, SpeakButton, TermText, useAsync } from "./common";
 import { Markdown } from "./Markdown";
 import { PronounceButton } from "./PronounceButton";
+import { findExamples } from "../core/vocab";
 import { useApp } from "./state";
 
 export function conceptFromDraft(d: ConceptDraft, id: string): Concept {
@@ -28,7 +31,7 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
   const lookWiki = () =>
     wikiJob.run(async () => {
       const term = concept.terms[app.target];
-      setWiki(term ? (await lookupWiktionary(term.text, app.target)) ?? "none" : "none");
+      setWiki(term ? (await lookupDictionary(term.text, app.target)) ?? "none" : "none");
     });
   const ai = useAsync();
   const langs = [target, ...profile.known.map((k) => k.code).filter((c) => c !== target)];
@@ -148,6 +151,7 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
             <a href={wiki.url} target="_blank" rel="noreferrer" className="small">
               Wiktionary (CC BY-SA) ↗
             </a>
+            {wiki.offline && <span className="badge">{t("wiki.offline")}</span>}
             <span className="grow" />
             {wiki.etymology && (
               <button
@@ -182,6 +186,8 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
           </ul>
         </>
       )}
+
+      {main && <BookExamples concept={concept} />}
 
       {concept.notes && (
         <>
@@ -234,6 +240,57 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
   );
 }
 
+/** Примеры из своих книг: живые предложения со словом, одно нажатие — в карточку. */
+function BookExamples({ concept }: { concept: Concept }) {
+  const { t } = useT();
+  const app = useApp();
+  const [found, setFound] = useState<{ text: string; book: string }[] | null>(null);
+  const job = useAsync();
+  const term = concept.terms[app.target];
+  const search = () =>
+    job.run(async () => {
+      const books = (await app.repo.loadBooks()).filter((b) => b.lang === app.target);
+      const out: { text: string; book: string }[] = [];
+      for (const b of books) {
+        for (const s of findExamples(term.text, b.paragraphs, 6 - out.length)) {
+          if (!concept.examples.some((e) => e.text === s)) out.push({ text: s, book: b.title });
+        }
+        if (out.length >= 6) break;
+      }
+      setFound(out);
+    });
+  if (!found)
+    return (
+      <button className="btn small" disabled={job.busy} onClick={search}>
+        {job.busy ? t("common.loading") : `📚 ${t("word.bookExamples")}`}
+      </button>
+    );
+  return (
+    <>
+      <h3>{t("word.bookExamples")}</h3>
+      {found.length === 0 && <p className="muted small">{t("word.noBookExamples")}</p>}
+      <ul className="examples">
+        {found.map((f) => (
+          <li key={f.text} className="row gap">
+            <span className="grow" lang={app.target} dir={langInfo(app.target).rtl ? "rtl" : "ltr"}>
+              {f.text} <span className="muted small">· {f.book}</span>
+            </span>
+            <button
+              className="btn small"
+              onClick={async () => {
+                await app.saveConcept({ ...concept, examples: [...concept.examples, { lang: app.target, text: f.text }] });
+                setFound(found.filter((x) => x !== f));
+              }}
+            >
+              + {t("word.addExample")}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 export function AddWord({ onClose, initialText = "", onSaved }: { onClose(): void; initialText?: string; onSaved?(): void }) {
   const { t } = useT();
   const app = useApp();
@@ -248,7 +305,7 @@ export function AddWord({ onClose, initialText = "", onSaved }: { onClose(): voi
       if (!aiReady(app.ai)) throw new Error(t("common.aiNotReady"));
       // Сначала словарь: если слово есть в Викисловаре, ИИ пересказывает его, а не вспоминает.
       const dict = await Promise.race([
-        lookupWiktionary(text.trim(), app.target).catch(() => null),
+        lookupDictionary(text.trim(), app.target).catch(() => null),
         new Promise<null>((r) => setTimeout(() => r(null), 6000)),
       ]);
       const d = await draftConcept(app.ai, app.profile, app.target, text.trim(), hint.trim(), dict ? wiktionaryContext(dict) : "");
@@ -258,9 +315,15 @@ export function AddWord({ onClose, initialText = "", onSaved }: { onClose(): voi
       setFromAi(true);
     });
 
-  const manual = () => {
-    const now = today();
-    setDraft({ id: "", terms: { [app.target]: { text: text.trim() } }, bridges: [], examples: [], tags: [], srs: {}, created: now, updated: now, notes: "" });
+  // Вручную: если есть офлайн-словарь — он сразу подставит начальную форму, род, значения и этимологию.
+  const manual = async () => {
+    const word = text.trim();
+    const hit = (await hasDict(app.target).catch(() => false)) ? await lookupOffline(word, app.target).catch(() => null) : null;
+    if (hit) setDraft(learnCard({ id: "", lang: app.target, lemma: hit.lemma, hit, tags: [], known: app.profile.known.map((k) => k.code) }));
+    else {
+      const now = today();
+      setDraft({ id: "", terms: { [app.target]: { text: word } }, bridges: [], examples: [], tags: [], srs: {}, created: now, updated: now, notes: "" });
+    }
     setFromAi(false);
   };
 

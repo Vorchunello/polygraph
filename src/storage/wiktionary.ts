@@ -1,4 +1,5 @@
 import { langInfo } from "../core/languages";
+import { hitEtymology, lookupOffline } from "./dictionary";
 import { platformFetch } from "./platform";
 
 // Английский Викисловарь как источник фактов: этимология и значения слова
@@ -9,6 +10,8 @@ export interface WiktionaryEntry {
   etymology?: string;
   definitions: string[];
   url: string;
+  /** Взято из скачанного офлайн-словаря, а не из сети. */
+  offline?: boolean;
 }
 
 // Названия разделов, которые отличаются от английского названия языка.
@@ -87,6 +90,21 @@ export async function lookupWiktionary(word: string, lang: string): Promise<Wikt
   if (!parsed) return null;
   const page = encodeURIComponent((data.parse.title ?? title).replace(/ /g, "_"));
   return { ...parsed, url: `https://en.wiktionary.org/wiki/${page}#${encodeURIComponent(sectionName(lang).replace(/ /g, "_"))}` };
+}
+
+/** Сначала офлайн-словарь (быстро и без сети), потом Викисловарь онлайн. */
+export async function lookupDictionary(word: string, lang: string): Promise<WiktionaryEntry | null> {
+  const hit = await lookupOffline(word, lang).catch(() => null);
+  if (hit) {
+    const page = encodeURIComponent(hit.lemma.replace(/ /g, "_"));
+    return {
+      etymology: hitEtymology(hit),
+      definitions: hit.senses.map((s) => `(${s.p}) ${s.d.join("; ")}`),
+      url: `https://en.wiktionary.org/wiki/${page}#${encodeURIComponent(sectionName(lang).replace(/ /g, "_"))}`,
+      offline: true,
+    };
+  }
+  return lookupWiktionary(word, lang);
 }
 
 /** Короткая сводка для промпта ИИ. */

@@ -2256,3 +2256,56 @@ progress {
   border-radius: 8px;
   padding: 8px 10px;
 }
+
+/* ——— v0.5: офлайн-словари, сохранённые слова, отбор слов ——— */
+.w.saved {
+  text-decoration: underline;
+  text-decoration-color: var(--ok);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.dict-card {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.dict-card ol {
+  margin: 6px 0;
+  padding-inline-start: 18px;
+}
+.dict-card p {
+  margin: 0 0 6px;
+}
+.extract-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 55vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.extract-list li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.extract-list li:last-child {
+  border-bottom: 0;
+}
+.extract-list li.off {
+  opacity: 0.55;
+}
+.extract-list input[type="checkbox"] {
+  margin-top: 4px;
+}
+.extract-example {
+  margin-top: 2px;
+}
+.offline-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
