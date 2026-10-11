@@ -56,7 +56,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
       - run: npm ci
       - run: npm run build
       - run: npx cap sync android
@@ -77,19 +77,23 @@ jobs:
           else
             echo "::warning::No ANDROID_KEYSTORE_B64 secret — the APK is signed with a debug key."
           fi
-      - name: Build APK
+      - name: Build APK and App Bundle
         working-directory: android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          # APK — для установки напрямую, AAB — для Google Play (там принимают только его).
+          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
           mkdir -p ../release
           cp app/build/outputs/apk/release/app-release.apk "../release/Polygraph-${POLYGRAPH_VERSION}.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "../release/Polygraph-${POLYGRAPH_VERSION}.aab"
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: release/*.apk
+          path: |
+            release/*.apk
+            release/*.aab
           if-no-files-found: error
 
   publish:

@@ -1067,7 +1067,7 @@ textarea.input {
   }
   .brand {
     grid-row: 1;
-    padding: calc(10px + env(safe-area-inset-top)) 16px 4px;
+    padding: calc(10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 16px 4px;
     background: var(--surface);
   }
   .brand-name {
@@ -1077,7 +1077,7 @@ textarea.input {
     grid-row: 1;
     justify-self: end;
     align-self: center;
-    padding: calc(6px + env(safe-area-inset-top)) 12px 0;
+    padding: calc(6px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 12px 0;
     width: 52%;
   }
   .view-head > .row > .input[type="search"] {
@@ -1093,7 +1093,7 @@ textarea.input {
     flex-direction: row;
     background: var(--surface);
     border-top: 1px solid var(--line);
-    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    padding: 4px 4px calc(4px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
   .nav-mobile li {
     flex: 1;
@@ -1614,7 +1614,7 @@ body.ticker-body {
   .more-panel {
     width: 100%;
     border-radius: 16px 16px 0 0;
-    padding: 12px 12px calc(76px + env(safe-area-inset-bottom));
+    padding: 12px 12px calc(76px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
   .notes-layout {
     grid-template-columns: 1fr;
