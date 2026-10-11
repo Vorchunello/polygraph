@@ -605,4 +605,16 @@ export const es: Messages = {
   "word.bookExamples": "Ejemplos de mis libros",
   "word.noBookExamples": "Todavía no hay frases con esta palabra en tus libros.",
   "word.addExample": "como ejemplo",
+  // v0.6
+  "report.title": "Denunciar esta respuesta de la IA",
+  "report.reason": "¿Qué pasa?",
+  "report.r.offensive": "Ofensiva, dañina o inapropiada",
+  "report.r.wrong": "Incorrecta o engañosa",
+  "report.r.other": "Otra cosa",
+  "report.comment": "Comentario (opcional)",
+  "report.attach": "Adjuntar la respuesta de la IA",
+  "report.privacy": "La denuncia llega a los desarrolladores de Polygraph: tu comentario, la respuesta (si la adjuntas), el proveedor y modelo de IA y la versión de la app. Nada más.",
+  "report.viaGithub": "Se abrirá una denuncia ya rellenada en GitHub.",
+  "report.send": "Enviar",
+  "report.sent": "Gracias: denuncia enviada.",
 };

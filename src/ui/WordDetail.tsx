@@ -13,6 +13,7 @@ import { BridgeBadge, GenderBadge, LangChip, Modal, SpeakButton, TermText, useAs
 import { Markdown } from "./Markdown";
 import { PronounceButton } from "./PronounceButton";
 import { findExamples } from "../core/vocab";
+import { ReportAi } from "./ReportAi";
 import { useApp } from "./state";
 
 export function conceptFromDraft(d: ConceptDraft, id: string): Concept {
@@ -204,6 +205,7 @@ export function WordDetail({ concept, onClose }: { concept: Concept; onClose(): 
       {answer && (
         <div className="ai-answer">
           <Markdown text={answer} />
+          <ReportAi kind="explain" content={answer} onReported={() => setAnswer("")} />
           <button
             className="btn"
             onClick={async () => {
@@ -376,7 +378,12 @@ export function AddWord({ onClose, initialText = "", onSaved }: { onClose(): voi
         </form>
       ) : (
         <>
-          {fromAi && <p className="notice">{t("word.aiDraftNote")}</p>}
+          {fromAi && (
+            <div className="row gap notice">
+              <span className="grow">{t("word.aiDraftNote")}</span>
+              <ReportAi kind="word" content={JSON.stringify({ terms: draft.terms, bridges: draft.bridges, etymology: draft.etymology, examples: draft.examples }, null, 1)} onReported={() => setDraft(null)} />
+            </div>
+          )}
           <WordForm
             initial={draft}
             onCancel={() => setDraft(null)}

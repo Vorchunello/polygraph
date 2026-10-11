@@ -607,6 +607,19 @@ export const en = {
   "word.bookExamples": "Examples from my books",
   "word.noBookExamples": "No sentences with this word in your books yet.",
   "word.addExample": "example",
+
+  // v0.6
+  "report.title": "Report this AI answer",
+  "report.reason": "What's wrong?",
+  "report.r.offensive": "Offensive, harmful or inappropriate",
+  "report.r.wrong": "Wrong or misleading",
+  "report.r.other": "Something else",
+  "report.comment": "Comment (optional)",
+  "report.attach": "Attach the AI answer",
+  "report.privacy": "The report goes to the Polygraph developers: your comment, the answer (if attached), the AI provider and model, and the app version. Nothing else.",
+  "report.viaGithub": "A pre-filled report will open on GitHub.",
+  "report.send": "Send report",
+  "report.sent": "Thanks — report sent.",
 } as const;
 
 export type MessageKey = keyof typeof en;

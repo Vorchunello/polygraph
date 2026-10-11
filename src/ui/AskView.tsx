@@ -5,6 +5,7 @@ import { langName } from "../core/languages";
 import { useT } from "../i18n";
 import { LangChip, useAsync } from "./common";
 import { Markdown } from "./Markdown";
+import { ReportAi } from "./ReportAi";
 import { useApp } from "./state";
 
 export function AskView() {
@@ -64,6 +65,7 @@ export function AskView() {
         <div className="ai-answer">
           <Markdown text={answer} />
           <div className="row gap end">
+            <ReportAi kind="ask" content={answer} onReported={() => setAnswer("")} />
             <button
               className="btn"
               onClick={async () => {

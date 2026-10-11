@@ -1,0 +1,26 @@
+Polygraph teaches a new language through the languages you already know. Spanish noche next to Russian ночь and English night; Spanish gender explained through Russian, articles through English; Arabic كتاب next to Turkish kitap. Every word is shown in all your languages at once, with real bridges (cognates, loanwords) and traps (false friends, a different gender) clearly marked.
+
+<b>Learn</b>
+• Multilingual dictionary with bridges and traps, gender colour-coded.
+• AI-drafted words: translations, gender, articles, etymology and examples — marked unverified until you confirm them, and grounded in Wiktionary when the word is there.
+• Spaced repetition, a goal on the home screen, a study streak and a focus timer.
+• Adaptation mode: a text in your language turns into the target language step by step — letters, then words, then whole sentences. Works for Arabic, Hebrew, Greek, Cyrillic and Latin scripts, Morse and Braille.
+• Games: decipher a language from scenes like in Chants of Sennaar, “Bridge or trap?”, and a drill builder.
+• Listening playlists that grow like a ladder — leave them running while you walk.
+
+<b>Read</b>
+• Your own books and texts: EPUB, FB2, TXT, PDF, subtitles, web articles, photos of pages.
+• Parallel translation page by page; reading themes and ADHD-friendly focus aids; speed reading; read aloud.
+• Tap a word: dictionary entry, then ★ Learn — the card gets the sentence from the book as its example.
+• Words worth learning from any text, PDF or video transcript, chosen by AI for your level and goal, or offline.
+
+<b>Offline and private</b>
+• Offline dictionaries for 30 languages: meanings, dictionary forms, gender, pronunciation and etymology without the internet.
+• Pronunciation and text recognition run on the device.
+• No account, no ads, no tracking. Your data is plain Markdown files in a folder you control — open them in Obsidian, sync them as you like.
+• Free AI works out of the box; or bring your own key (Groq, Gemini, OpenRouter, OpenAI, DeepSeek, Claude), or use LM Studio running on your PC over Wi-Fi.
+
+<b>ADHD mode</b>
+A small word strip floats over other apps — a video, a game — and asks “know / don’t know” every few words. Missed words come back for review today.
+
+Interface in English, Russian, Spanish, Turkish and Arabic. Open source (MIT): github.com/Vorchunello/polygraph

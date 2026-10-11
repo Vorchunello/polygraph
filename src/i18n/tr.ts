@@ -605,4 +605,16 @@ export const tr: Messages = {
   "word.bookExamples": "Kitaplarımdan örnekler",
   "word.noBookExamples": "Kitaplarında henüz bu kelimeyle cümle yok.",
   "word.addExample": "örneklere",
+  // v0.6
+  "report.title": "Bu YZ yanıtını bildir",
+  "report.reason": "Sorun ne?",
+  "report.r.offensive": "Saldırgan, zararlı ya da uygunsuz",
+  "report.r.wrong": "Yanlış ya da yanıltıcı",
+  "report.r.other": "Başka bir şey",
+  "report.comment": "Yorum (isteğe bağlı)",
+  "report.attach": "YZ yanıtını ekle",
+  "report.privacy": "Bildirim Polygraph geliştiricilerine gider: yorumun, yanıt (eklediysen), YZ sağlayıcısı ve modeli, uygulama sürümü. Başka bir şey değil.",
+  "report.viaGithub": "GitHub'da doldurulmuş bir bildirim açılacak.",
+  "report.send": "Gönder",
+  "report.sent": "Teşekkürler — bildirim gönderildi.",
 };

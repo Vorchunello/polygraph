@@ -7,6 +7,7 @@ import { backlinks, resolveLink, searchNotes, type Note } from "../core/notes";
 import { useT } from "../i18n";
 import { useAsync } from "./common";
 import { Markdown } from "./Markdown";
+import { ReportAi } from "./ReportAi";
 import { useApp } from "./state";
 import { WordDetail } from "./WordDetail";
 
@@ -182,6 +183,7 @@ export function NotesView() {
           <div className="ai-answer">
             <Markdown text={answer} onLink={follow} />
             <div className="row gap end">
+              <ReportAi kind="notes" content={answer} onReported={() => setAnswer("")} />
               <button
                 className="btn"
                 onClick={() => {

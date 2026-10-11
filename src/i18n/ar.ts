@@ -605,4 +605,16 @@ export const ar: Messages = {
   "word.bookExamples": "أمثلة من كتبي",
   "word.noBookExamples": "لا توجد بعد جمل بهذه الكلمة في كتبك.",
   "word.addExample": "إلى الأمثلة",
+  // v0.6
+  "report.title": "الإبلاغ عن إجابة الذكاء الاصطناعي هذه",
+  "report.reason": "ما المشكلة؟",
+  "report.r.offensive": "مسيئة أو ضارة أو غير لائقة",
+  "report.r.wrong": "خاطئة أو مضللة",
+  "report.r.other": "شيء آخر",
+  "report.comment": "تعليق (اختياري)",
+  "report.attach": "إرفاق إجابة الذكاء الاصطناعي",
+  "report.privacy": "يصل البلاغ إلى مطوري Polygraph: تعليقك، والإجابة (إن أرفقتها)، ومزوّد الذكاء الاصطناعي والنموذج، وإصدار التطبيق. لا شيء غير ذلك.",
+  "report.viaGithub": "سيُفتح بلاغ معبأ مسبقًا على GitHub.",
+  "report.send": "إرسال",
+  "report.sent": "شكرًا — أُرسل البلاغ.",
 };

@@ -6,6 +6,7 @@ import { isDue } from "../core/srs";
 import { useT } from "../i18n";
 import { TermText, useAsync } from "./common";
 import { Markdown } from "./Markdown";
+import { ReportAi } from "./ReportAi";
 import { useApp } from "./state";
 
 export function TextsView() {
@@ -86,6 +87,7 @@ export function TextsView() {
             <div className="ai-answer story">
               <Markdown text={text} />
               <div className="row gap end">
+                <ReportAi kind="story" content={text} onReported={() => setText("")} />
                 <button
                   className="btn"
                   onClick={async () => {
