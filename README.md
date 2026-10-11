@@ -42,7 +42,7 @@ Polygraph keeps every word as a **concept with bridges**: the word in each of yo
 - **Notes** — Markdown notes with `[[wikilinks]]` and backlinks, Obsidian-style. Ask the AI about your notes, or let it write a set of linked notes on a topic.
 - **Ask** — grammar and usage questions answered through your routes.
 - **Pronunciation** — “Say it” on every word: speech is recognised on the device (Whisper), you see what was heard and a similarity score.
-- **Wiktionary, online and offline** — download a dictionary per language (30 languages, 4–10 MB each) for meanings, dictionary forms, gender, pronunciation and etymology without the internet; new words are drafted from the dictionary entry, and any etymology can be checked and marked verified.
+- **Wiktionary, online and offline** — download a dictionary per language (30 languages, 0.5–13 MB each) for meanings, dictionary forms, gender, pronunciation and etymology without the internet; new words are drafted from the dictionary entry, and any etymology can be checked and marked verified.
 - **For AI agents** — an MCP server lets Claude Code and other agents read your words, traps, inbox and notes ([docs/MCP.md](docs/MCP.md)).
 
 **Everywhere**
